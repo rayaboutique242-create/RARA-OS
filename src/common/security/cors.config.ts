@@ -90,13 +90,32 @@ export const corsConfigDev: CorsOptions = {
 
 /**
  * Production CORS Configuration
- * Strict configuration for production
+ * Strict configuration for production — supports Railway auto-generated domains
  */
 export const corsConfigProd: CorsOptions = {
-  origin: [
-    process.env.PRODUCTION_URL || 'https://raya-boutique.com',
-    process.env.PRODUCTION_ADMIN_URL || 'https://admin.raya-boutique.com',
-  ].filter(Boolean),
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    const allowedOrigins = [
+      process.env.PRODUCTION_URL,
+      process.env.PRODUCTION_ADMIN_URL,
+      process.env.FRONTEND_URL,
+      // Railway auto-generated domains
+      process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : null,
+      // Parse comma-separated ALLOWED_ORIGINS
+      ...(process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || []),
+    ].filter(Boolean) as string[];
+
+    if (!origin) {
+      // Allow no-origin requests (mobile, server-to-server, curl)
+      callback(null, true);
+      return;
+    }
+
+    if (allowedOrigins.includes(origin) || origin.endsWith('.railway.app')) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS not allowed'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type',

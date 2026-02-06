@@ -36,10 +36,12 @@ export class EnvironmentVariables {
 
   // ==================== Database ====================
   @IsString()
-  DB_TYPE: string = 'better-sqlite3';
+  @IsOptional()
+  DB_TYPE?: string = 'better-sqlite3';
 
   @IsString()
-  DB_DATABASE: string = 'raya_dev.sqlite';
+  @IsOptional()
+  DB_DATABASE?: string = 'raya_dev.sqlite';
 
   @IsString()
   @IsOptional()
@@ -216,8 +218,26 @@ export class EnvironmentVariables {
 /**
  * Validate environment variables on application startup.
  * Throws a detailed error if required variables are missing or malformed.
+ * Auto-detects DB_TYPE from DATABASE_URL when not explicitly set.
  */
 export function validate(config: Record<string, unknown>) {
+  // Auto-detect DB_TYPE from DATABASE_URL if present
+  if (config.DATABASE_URL && typeof config.DATABASE_URL === 'string') {
+    const url = config.DATABASE_URL as string;
+    if (url.startsWith('postgres://') || url.startsWith('postgresql://')) {
+      if (!config.DB_TYPE || config.DB_TYPE === 'better-sqlite3') {
+        config.DB_TYPE = 'postgres';
+      }
+    }
+  }
+
+  // Railway injects PGHOST, PGUSER, etc. — map to our vars if not set
+  if (!config.DB_HOST && config.PGHOST) config.DB_HOST = config.PGHOST;
+  if (!config.DB_PORT && config.PGPORT) config.DB_PORT = config.PGPORT;
+  if (!config.DB_USERNAME && config.PGUSER) config.DB_USERNAME = config.PGUSER;
+  if (!config.DB_PASSWORD && config.PGPASSWORD) config.DB_PASSWORD = config.PGPASSWORD;
+  if (!config.DB_DATABASE && config.PGDATABASE) config.DB_DATABASE = config.PGDATABASE;
+
   const validatedConfig = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: true,
   });

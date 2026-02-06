@@ -6,12 +6,15 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 import { join } from 'path';
 
 function buildDataSourceOptions(): DataSourceOptions {
-  const dbType = process.env.DB_TYPE || 'better-sqlite3';
+  const databaseUrl = process.env.DATABASE_URL;
+  const rawDbType = process.env.DB_TYPE || 'better-sqlite3';
+  // Auto-detect postgres from DATABASE_URL
+  const isPostgresUrl = databaseUrl && (databaseUrl.startsWith('postgres://') || databaseUrl.startsWith('postgresql://'));
+  const dbType = isPostgresUrl ? 'postgres' : rawDbType;
   const entities = [join(__dirname, '..', '**', '*.entity.{ts,js}')];
   const migrations = [join(__dirname, 'migrations', '*.{ts,js}')];
 
   if (dbType === 'postgres') {
-    const databaseUrl = process.env.DATABASE_URL;
     if (databaseUrl) {
       return {
         type: 'postgres',

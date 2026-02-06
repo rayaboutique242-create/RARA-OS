@@ -4,9 +4,13 @@
 [build.nixpacks]
   nodejs_version = "20"
 
+[build.nixpacks.aptPkgs]
+  # Required for better-sqlite3 native addon compilation (fallback support)
+  packages = ["python3", "make", "g++"]
+
 [deploy]
   startCommand = "node dist/main.js"
   healthcheckPath = "/api/health"
-  healthcheckTimeout = 30
+  healthcheckTimeout = 60
   restartPolicyType = "on_failure"
-  restartPolicyMaxRetries = 3
+  restartPolicyMaxRetries = 5

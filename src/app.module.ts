@@ -153,7 +153,11 @@ import { validate } from './config/env.validation';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
-        const dbType = configService.get<string>('DB_TYPE', 'better-sqlite3');
+        const databaseUrl = configService.get<string>('DATABASE_URL');
+        // Auto-detect postgres from DATABASE_URL even if DB_TYPE not set
+        const rawDbType = configService.get<string>('DB_TYPE', 'better-sqlite3');
+        const isPostgresUrl = databaseUrl && (databaseUrl.startsWith('postgres://') || databaseUrl.startsWith('postgresql://'));
+        const dbType = isPostgresUrl ? 'postgres' : rawDbType;
         const isPostgres = dbType === 'postgres';
 
         // Base config common to all DB types
@@ -188,7 +192,6 @@ import { validate } from './config/env.validation';
 
         if (isPostgres) {
           // Railway / cloud providers inject DATABASE_URL as a single connection string
-          const databaseUrl = configService.get<string>('DATABASE_URL');
           if (databaseUrl) {
             return {
               ...baseConfig,
