@@ -104,8 +104,8 @@ export const corsConfigProd: CorsOptions = {
       ...(process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || []),
     ].filter(Boolean) as string[];
 
-    if (!origin) {
-      // Allow no-origin requests (mobile, server-to-server, curl)
+    if (!origin || origin === 'null') {
+      // Allow requests with no origin (mobile apps, curl, file:// protocol)
       callback(null, true);
       return;
     }
