@@ -78,8 +78,8 @@ export class InventoryService {
       locationTo: dto.locationTo ?? '',
       batchNumber: dto.batchNumber ?? '',
       expiryDate: dto.expiryDate ? new Date(dto.expiryDate) : new Date('9999-12-31'),
-      createdBy: user.sub,
-      createdByName: user.email,
+      createdBy: user.sub || user.id || 'system',
+      createdByName: user.email || user.username || 'system',
     });
 
     await this.productRepository.update(product.id, { stockQuantity: quantityAfter });
@@ -112,8 +112,8 @@ export class InventoryService {
       unitCost: product.purchasePrice,
       totalCost: product.purchasePrice * Math.abs(difference),
       notes: dto.notes ?? `Ajustement de ${quantityBefore} a ${dto.newQuantity}`,
-      createdBy: user.sub,
-      createdByName: user.email,
+      createdBy: user.sub || user.id || 'system',
+      createdByName: user.email || user.username || 'system',
     });
 
     await this.productRepository.update(product.id, { stockQuantity: dto.newQuantity });
@@ -229,8 +229,8 @@ export class InventoryService {
       status: InventoryCountStatus.DRAFT,
       location: dto.location ?? '',
       categoryId: dto.categoryId ?? '',
-      createdBy: user.sub,
-      createdByName: user.email,
+      createdBy: user.sub || user.id || 'system',
+      createdByName: user.email || user.username || 'system',
     });
 
     const savedCount = await this.inventoryCountRepository.save(inventoryCount);
@@ -355,8 +355,8 @@ export class InventoryService {
       varianceValue,
       isCounted: true,
       countedAt: new Date(),
-      countedBy: user.sub,
-      countedByName: user.email,
+      countedBy: user.sub || user.id || 'system',
+      countedByName: user.email || user.username || 'system',
       notes: dto.notes ?? '',
     });
 
@@ -439,8 +439,8 @@ export class InventoryService {
     await this.inventoryCountRepository.update(id, {
       status: InventoryCountStatus.VALIDATED,
       validatedAt: new Date(),
-      validatedBy: user.sub,
-      validatedByName: user.email,
+      validatedBy: user.sub || user.id || 'system',
+      validatedByName: user.email || user.username || 'system',
     });
 
     return this.getInventoryCountById(id, user);
