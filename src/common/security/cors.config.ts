@@ -110,7 +110,7 @@ export const corsConfigProd: CorsOptions = {
       return;
     }
 
-    if (allowedOrigins.includes(origin) || origin.endsWith('.railway.app') || origin.endsWith('.rayamanager.com') || origin === 'https://rayamanager.com' || origin === 'https://app.rayamanager.com') {
+    if (allowedOrigins.includes(origin) || origin.endsWith('.railway.app') || origin.endsWith('.rayamanager.com') || origin === 'https://rayamanager.com' || origin === 'https://app.rayamanager.com' || origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
       callback(null, true);
     } else {
       callback(new Error('CORS not allowed'));
