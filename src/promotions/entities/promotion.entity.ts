@@ -80,10 +80,10 @@ export class Promotion {
   @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
   getDiscountPercent: number;
 
-  @Column({ type: 'datetime' })
+  @Column({ type: 'timestamp' })
   startDate: Date;
 
-  @Column({ type: 'datetime' })
+  @Column({ type: 'timestamp' })
   endDate: Date;
 
   @Column({ type: 'int', nullable: true })

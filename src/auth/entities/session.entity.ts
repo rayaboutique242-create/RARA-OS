@@ -36,10 +36,10 @@ export class Session {
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
-  @Column({ name: 'last_activity', type: 'datetime', nullable: true })
+  @Column({ name: 'last_activity', type: 'timestamp', nullable: true })
   lastActivity: Date;
 
-  @Column({ name: 'expires_at', type: 'datetime' })
+  @Column({ name: 'expires_at', type: 'timestamp' })
   expiresAt: Date;
 
   @CreateDateColumn({ name: 'created_at' })

@@ -27,10 +27,10 @@ export class TenantSubscription {
   @Column({ type: 'varchar', length: 50, default: 'PENDING' })
   status: string;
 
-  @Column({ type: 'datetime' })
+  @Column({ type: 'timestamp' })
   startDate: Date;
 
-  @Column({ type: 'datetime' })
+  @Column({ type: 'timestamp' })
   endDate: Date;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
@@ -54,7 +54,7 @@ export class TenantSubscription {
   @Column({ type: 'varchar', length: 255, nullable: true })
   paymentReference: string;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   paidAt: Date;
 
   @Column({ type: 'integer', default: 5 })
@@ -72,7 +72,7 @@ export class TenantSubscription {
   @Column({ type: 'boolean', default: true })
   autoRenew: boolean;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   cancelledAt: Date;
 
   @Column({ type: 'text', nullable: true })

@@ -1,4 +1,4 @@
-﻿// src/inventory/entities/stock-movement.entity.ts
+// src/inventory/entities/stock-movement.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -90,7 +90,7 @@ export class StockMovement {
   @Column({ name: 'batch_number', type: 'varchar', nullable: true })
   batchNumber: string;
 
-  @Column({ name: 'expiry_date', type: 'datetime', nullable: true })
+  @Column({ name: 'expiry_date', type: 'timestamp', nullable: true })
   expiryDate: Date;
 
   @Column({ name: 'created_by', type: 'varchar' })

@@ -48,7 +48,7 @@ export class Discount {
   @Column({ type: 'varchar', length: 20, default: DiscountAppliesTo.PRODUCT })
   appliesTo: DiscountAppliesTo;
 
-  @Column({ type: 'varchar', length: 36, nullable: true })
+  @Column({ nullable: true })
   productId: string;
 
   @ManyToOne(() => Product, { nullable: true })
@@ -65,10 +65,10 @@ export class Discount {
   @Column({ type: 'varchar', length: 20, default: DiscountStatus.ACTIVE })
   status: DiscountStatus;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   startDate: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   endDate: Date;
 
   @Column({ type: 'int', nullable: true })

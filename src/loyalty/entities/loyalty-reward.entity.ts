@@ -96,10 +96,10 @@ export class LoyaltyReward {
   eligibleProductIds: string; // JSON: produits applicables
 
   // Validité
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   startDate: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   endDate: Date;
 
   @Column({ type: 'int', default: 30 })

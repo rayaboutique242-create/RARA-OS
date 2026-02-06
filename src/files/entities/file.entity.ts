@@ -150,10 +150,10 @@ export class File {
   @Column({ type: 'integer', default: 0 })
   viewCount: number;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastAccessedAt: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   expiresAt: Date;
 
   @CreateDateColumn()

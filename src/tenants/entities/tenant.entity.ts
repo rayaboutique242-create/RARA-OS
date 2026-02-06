@@ -111,13 +111,13 @@ export class Tenant {
   @Column({ type: 'varchar', length: 50, nullable: true })
   ownerPhone: string;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   subscriptionStartDate: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   subscriptionEndDate: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   trialEndDate: Date;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
@@ -207,7 +207,7 @@ export class Tenant {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   storageUsedGB: number;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastActivityAt: Date;
 
   @Column({ type: 'text', nullable: true })

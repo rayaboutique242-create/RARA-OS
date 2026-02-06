@@ -1,5 +1,5 @@
 // src/common/lifecycle/database-init.service.ts
-// Runs on startup: enables WAL mode, sets pragmas for robustness
+// Runs on startup: enables WAL mode, sets pragmas for robustness (SQLite only)
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
@@ -10,7 +10,13 @@ export class DatabaseInitService implements OnModuleInit {
   constructor(private readonly dataSource: DataSource) {}
 
   async onModuleInit() {
-    await this.configureSqlitePragmas();
+    // Only run SQLite pragmas when using SQLite
+    const dbType = this.dataSource.options.type;
+    if (dbType === 'better-sqlite3' || dbType === 'sqlite') {
+      await this.configureSqlitePragmas();
+    } else {
+      this.logger.log(`Database type: ${dbType} — skipping SQLite pragmas`);
+    }
   }
 
   /**

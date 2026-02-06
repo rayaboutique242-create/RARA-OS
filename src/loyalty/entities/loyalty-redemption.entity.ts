@@ -85,11 +85,11 @@ export class LoyaltyRedemption {
   @Column({ type: 'varchar', length: 50, nullable: true })
   usedOnOrderNumber: string | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   usedAt: Date;
 
   // Validité
-  @Column({ type: 'datetime' })
+  @Column({ type: 'timestamp' })
   expiresAt: Date;
 
   // Statut
@@ -108,7 +108,7 @@ export class LoyaltyRedemption {
   customerNotes: string;
 
   // Annulation/Remboursement
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   cancelledAt: Date;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
@@ -117,7 +117,7 @@ export class LoyaltyRedemption {
   @Column({ type: 'boolean', default: false })
   pointsRefunded: boolean;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   refundedAt: Date;
 
   // Approbation
@@ -127,7 +127,7 @@ export class LoyaltyRedemption {
   @Column({ type: 'varchar', length: 100, nullable: true })
   approvedByName: string;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   approvedAt: Date;
 
   // Fulfillment
@@ -137,7 +137,7 @@ export class LoyaltyRedemption {
   @Column({ type: 'varchar', length: 100, nullable: true })
   fulfilledByName: string;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   fulfilledAt: Date;
 
   // Métadonnées

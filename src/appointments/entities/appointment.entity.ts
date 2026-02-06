@@ -81,19 +81,19 @@ export class Appointment {
   @Column({ type: 'text', nullable: true })
   cancellationReason: string | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   cancelledAt: Date | null;
 
   @Column({ type: 'int', nullable: true })
   cancelledById: number | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   confirmedAt: Date | null;
 
   @Column({ type: 'int', nullable: true })
   confirmedById: number | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   completedAt: Date | null;
 
   @Column({ type: 'int', nullable: true })
@@ -114,7 +114,7 @@ export class Appointment {
   @Column({ type: 'boolean', default: false })
   reminderSent: boolean;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   reminderSentAt: Date | null;
 
   @Column({ type: 'int', nullable: true })

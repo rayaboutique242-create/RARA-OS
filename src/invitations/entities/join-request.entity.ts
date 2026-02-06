@@ -40,7 +40,7 @@ export class JoinRequest {
   @Column({ name: 'reviewed_by_user_id', nullable: true })
   reviewedByUserId: string;
 
-  @Column({ name: 'reviewed_at', type: 'datetime', nullable: true })
+  @Column({ name: 'reviewed_at', type: 'timestamp', nullable: true })
   reviewedAt: Date;
 
   @Column({ name: 'rejection_reason', type: 'text', nullable: true })

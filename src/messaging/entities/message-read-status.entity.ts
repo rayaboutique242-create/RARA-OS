@@ -35,13 +35,13 @@ export class MessageReadStatus {
   @Column({ type: 'int', default: 0 })
   unreadCount: number;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastReadAt: Date | null;
 
   @Column({ type: 'boolean', default: false })
   isMuted: boolean;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   mutedUntil: Date | null;
 
   @Column({ type: 'boolean', default: false })

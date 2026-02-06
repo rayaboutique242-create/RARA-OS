@@ -41,10 +41,10 @@ export class UserPresence {
   @Column({ type: 'varchar', length: 255, nullable: true })
   statusMessage: string | null; // Custom status message
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastSeenAt: Date | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastActiveAt: Date | null;
 
   @Column({ type: 'varchar', length: 100, nullable: true })

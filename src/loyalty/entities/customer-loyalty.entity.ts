@@ -58,17 +58,17 @@ export class CustomerLoyalty {
   @Column({ type: 'varchar', length: 50, nullable: true })
   tierName: string;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   tierAchievedAt: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   tierExpiresAt: Date;
 
   // Historique des niveaux
   @Column({ type: 'varchar', length: 50, nullable: true })
   previousTierCode: string;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   tierDowngradedAt: Date;
 
   // Statistiques
@@ -85,27 +85,27 @@ export class CustomerLoyalty {
   @Column({ type: 'int', default: 0 })
   pointsExpiringThisMonth: number;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   nextPointsExpirationDate: Date;
 
   @Column({ type: 'int', default: 0 })
   nextExpiringPoints: number;
 
   // Dates importantes
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   enrolledAt: Date; // Date d'inscription au programme
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastPointsEarnedAt: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastRedemptionAt: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastActivityAt: Date;
 
   // Anniversaire (pour bonus)
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   birthday: Date;
 
   @Column({ type: 'boolean', default: false })
@@ -138,7 +138,7 @@ export class CustomerLoyalty {
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   suspendedAt: Date;
 
   @Column({ type: 'varchar', length: 255, nullable: true })

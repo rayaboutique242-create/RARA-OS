@@ -1,4 +1,4 @@
-﻿// src/payments/entities/transaction.entity.ts
+// src/payments/entities/transaction.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -112,7 +112,7 @@ export class Transaction {
   @Column({ type: 'varchar', length: 100, nullable: true })
   processedByName: string;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   processedAt: Date;
 
   @Column({ type: 'varchar', length: 50 })

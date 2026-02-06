@@ -47,10 +47,10 @@ export class ExchangeRate {
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
-  @Column({ type: 'datetime' })
+  @Column({ type: 'timestamp' })
   effectiveDate: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   expiryDate: Date | null;
 
   @Column({ type: 'varchar', length: 100, nullable: true })

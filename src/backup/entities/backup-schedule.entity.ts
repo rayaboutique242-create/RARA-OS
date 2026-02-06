@@ -65,10 +65,10 @@ export class BackupSchedule {
   @Column({ type: 'text', nullable: true })
   tablesToExclude: string | null; // JSON array
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastRunAt: Date | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   nextRunAt: Date | null;
 
   @Column({ type: 'integer', default: 0 })

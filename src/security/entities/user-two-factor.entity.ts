@@ -41,7 +41,7 @@ export class UserTwoFactor {
   @Column({ type: 'int', default: 0 })
   recoveryCodesUsed: number;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastUsedAt: Date;
 
   @Column({ type: 'varchar', length: 100, nullable: true })

@@ -102,7 +102,7 @@ export class ReturnItem {
   @Column({ type: 'boolean', default: false })
   isRestocked: boolean;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   restockedAt: Date | null;
 
   @Column({ type: 'varchar', length: 50, nullable: true })

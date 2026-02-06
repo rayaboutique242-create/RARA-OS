@@ -53,10 +53,10 @@ export class Coupon {
   @Column({ type: 'varchar', length: 20, default: CouponStatus.ACTIVE })
   status: CouponStatus;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   startDate: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   expiryDate: Date;
 
   @Column({ type: 'int', nullable: true })

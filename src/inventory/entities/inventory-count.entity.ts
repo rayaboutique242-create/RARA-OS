@@ -1,4 +1,4 @@
-﻿// src/inventory/entities/inventory-count.entity.ts
+// src/inventory/entities/inventory-count.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -51,13 +51,13 @@ export class InventoryCount {
   @Column({ name: 'category_id', type: 'varchar', nullable: true })
   categoryId: string;
 
-  @Column({ name: 'started_at', type: 'datetime', nullable: true })
+  @Column({ name: 'started_at', type: 'timestamp', nullable: true })
   startedAt: Date;
 
-  @Column({ name: 'completed_at', type: 'datetime', nullable: true })
+  @Column({ name: 'completed_at', type: 'timestamp', nullable: true })
   completedAt: Date;
 
-  @Column({ name: 'validated_at', type: 'datetime', nullable: true })
+  @Column({ name: 'validated_at', type: 'timestamp', nullable: true })
   validatedAt: Date;
 
   @Column({ name: 'total_products', type: 'integer', default: 0 })

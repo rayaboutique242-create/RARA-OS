@@ -93,20 +93,20 @@ export class Delivery {
   longitude: number;
 
   // Dates planifiées
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   scheduledDate: Date;
 
   @Column({ nullable: true })
   scheduledTimeSlot: string; // "09:00-12:00", "14:00-18:00"
 
   // Dates réelles
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   assignedAt: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   pickedUpAt: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   deliveredAt: Date;
 
   // Preuve de livraison
@@ -126,7 +126,7 @@ export class Delivery {
   @Column({ default: 0 })
   attemptCount: number;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastAttemptAt: Date;
 
   // Frais et distance

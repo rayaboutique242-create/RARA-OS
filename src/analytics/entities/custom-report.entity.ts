@@ -102,17 +102,17 @@ export class CustomReport {
   @Column({ type: 'text', nullable: true })
   scheduleRecipientsJson: string | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastSentAt: Date | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   nextScheduledAt: Date | null;
 
   // Usage tracking
   @Column({ type: 'int', default: 0 })
   viewCount: number;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastViewedAt: Date | null;
 
   @Column({ type: 'int', nullable: true })

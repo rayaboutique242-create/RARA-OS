@@ -1,4 +1,4 @@
-﻿// src/files/entities/document.entity.ts
+// src/files/entities/document.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -90,13 +90,13 @@ export class Document {
   @Column({ type: 'varchar', length: 200, nullable: true })
   relatedEntityName: string;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   documentDate: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   expiryDate: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   effectiveDate: Date;
 
   @Column({ type: 'varchar', length: 10, default: 'XOF' })
@@ -132,7 +132,7 @@ export class Document {
   @Column({ type: 'varchar', length: 200, nullable: true })
   approvedByName: string;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   approvedAt: Date;
 
   @Column({ type: 'text', nullable: true })

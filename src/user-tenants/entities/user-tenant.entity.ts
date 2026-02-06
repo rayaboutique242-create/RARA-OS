@@ -60,7 +60,7 @@ export class UserTenant {
   @Column({ name: 'join_request_id', nullable: true })
   joinRequestId: string;
 
-  @Column({ name: 'joined_at', type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ name: 'joined_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   joinedAt: Date;
 
   @CreateDateColumn({ name: 'created_at' })

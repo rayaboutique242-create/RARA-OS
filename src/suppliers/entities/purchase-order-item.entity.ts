@@ -60,7 +60,7 @@ export class PurchaseOrderItem {
   @Column({ name: 'is_fully_received', type: 'boolean', default: false })
   isFullyReceived: boolean;
 
-  @Column({ name: 'last_received_at', type: 'datetime', nullable: true })
+  @Column({ name: 'last_received_at', type: 'timestamp', nullable: true })
   lastReceivedAt: Date;
 
   @Column({ type: 'text', nullable: true })

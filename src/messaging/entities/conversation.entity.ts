@@ -65,7 +65,7 @@ export class Conversation {
   @Column({ type: 'int', default: 0 })
   messageCount: number;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastMessageAt: Date | null;
 
   @Column({ type: 'varchar', length: 500, nullable: true })

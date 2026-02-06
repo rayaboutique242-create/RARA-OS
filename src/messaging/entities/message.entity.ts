@@ -104,7 +104,7 @@ export class Message {
   @Column({ type: 'boolean', default: false })
   isEdited: boolean;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   editedAt: Date | null;
 
   @Column({ type: 'boolean', default: false })
@@ -116,10 +116,10 @@ export class Message {
   @Column({ type: 'boolean', default: false })
   isPinned: boolean;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   scheduledAt: Date | null; // For scheduled messages
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   expiresAt: Date | null; // For self-destructing messages
 
   @Column({ type: 'varchar', length: 50, nullable: true })

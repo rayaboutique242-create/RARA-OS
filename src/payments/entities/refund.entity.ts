@@ -1,4 +1,4 @@
-﻿// src/payments/entities/refund.entity.ts
+// src/payments/entities/refund.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -101,7 +101,7 @@ export class Refund {
   @Column({ type: 'varchar', length: 100, nullable: true })
   approvedByName: string;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   approvedAt: Date;
 
   @Column({ type: 'uuid', nullable: true })
@@ -110,7 +110,7 @@ export class Refund {
   @Column({ type: 'varchar', length: 100, nullable: true })
   processedByName: string;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   processedAt: Date;
 
   @Column({ type: 'text', nullable: true })

@@ -1,4 +1,4 @@
-﻿// src/users/entities/user.entity.ts
+// src/users/entities/user.entity.ts
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { Role } from '../../common/constants/roles';
 
@@ -37,7 +37,7 @@ export class User {
     @Column({ default: 'active' })
     status: string;
 
-    @Column({ name: 'last_login', type: 'datetime', nullable: true })
+    @Column({ name: 'last_login', type: 'timestamp', nullable: true })
     lastLogin: Date;
 
     // ==================== Refresh Token ====================
@@ -48,7 +48,7 @@ export class User {
     @Column({ name: 'password_reset_token', type: 'text', nullable: true })
     passwordResetToken: string | null;
 
-    @Column({ name: 'password_reset_expires', type: 'datetime', nullable: true })
+    @Column({ name: 'password_reset_expires', type: 'timestamp', nullable: true })
     passwordResetExpires: Date | null;
 
     // ==================== OAuth2 ====================
@@ -66,7 +66,7 @@ export class User {
     @Column({ name: 'failed_login_attempts', default: 0 })
     failedLoginAttempts: number;
 
-    @Column({ name: 'locked_until', type: 'datetime', nullable: true })
+    @Column({ name: 'locked_until', type: 'timestamp', nullable: true })
     lockedUntil: Date | null;
 
     @CreateDateColumn({ name: 'created_at' })

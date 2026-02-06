@@ -60,7 +60,7 @@ export class ReceptionItem {
   @Column({ name: 'batch_number', type: 'varchar', nullable: true })
   batchNumber: string;
 
-  @Column({ name: 'expiry_date', type: 'datetime', nullable: true })
+  @Column({ name: 'expiry_date', type: 'timestamp', nullable: true })
   expiryDate: Date;
 
   @Column({ name: 'storage_location', type: 'varchar', nullable: true })

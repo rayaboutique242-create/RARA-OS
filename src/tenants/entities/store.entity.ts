@@ -108,7 +108,7 @@ export class Store {
   @Column({ type: 'integer', default: 0 })
   currentMonthOrders: number;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastSaleAt: Date;
 
   @Column({ type: 'text', nullable: true })

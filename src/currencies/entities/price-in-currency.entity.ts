@@ -55,16 +55,16 @@ export class PriceInCurrency {
   @Column({ type: 'decimal', precision: 18, scale: 8, nullable: true })
   exchangeRateUsed: number | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   rateCalculatedAt: Date | null;
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   effectiveFrom: Date | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   effectiveTo: Date | null;
 
   @CreateDateColumn()

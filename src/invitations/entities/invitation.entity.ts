@@ -64,10 +64,10 @@ export class Invitation {
   @Column({ type: 'text', nullable: true })
   message: string;
 
-  @Column({ name: 'expires_at', type: 'datetime' })
+  @Column({ name: 'expires_at', type: 'timestamp' })
   expiresAt: Date;
 
-  @Column({ name: 'accepted_at', type: 'datetime', nullable: true })
+  @Column({ name: 'accepted_at', type: 'timestamp', nullable: true })
   acceptedAt: Date;
 
   @Column({ name: 'accepted_by_user_id', nullable: true })

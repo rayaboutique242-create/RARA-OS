@@ -105,13 +105,13 @@ export class Webhook {
   @Column({ type: 'integer', default: 0 })
   consecutiveFailures: number;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastTriggeredAt: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastSuccessAt: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastFailureAt: Date;
 
   @Column({ type: 'varchar', length: 500, nullable: true })

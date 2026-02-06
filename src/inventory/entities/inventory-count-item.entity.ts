@@ -1,4 +1,4 @@
-﻿// src/inventory/entities/inventory-count-item.entity.ts
+// src/inventory/entities/inventory-count-item.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -48,7 +48,7 @@ export class InventoryCountItem {
   @Column({ name: 'is_counted', type: 'boolean', default: false })
   isCounted: boolean;
 
-  @Column({ name: 'counted_at', type: 'datetime', nullable: true })
+  @Column({ name: 'counted_at', type: 'timestamp', nullable: true })
   countedAt: Date;
 
   @Column({ name: 'counted_by', type: 'varchar', nullable: true })

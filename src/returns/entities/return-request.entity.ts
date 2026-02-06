@@ -104,10 +104,10 @@ export class ReturnRequest {
   @Column({ type: 'varchar', length: 10, default: 'XOF' })
   currency: string;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   requestedAt: Date | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   approvedAt: Date | null;
 
   @Column({ type: 'int', nullable: true })
@@ -116,10 +116,10 @@ export class ReturnRequest {
   @Column({ type: 'varchar', length: 100, nullable: true })
   approvedByName: string | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   receivedAt: Date | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   completedAt: Date | null;
 
   @Column({ type: 'text', nullable: true })

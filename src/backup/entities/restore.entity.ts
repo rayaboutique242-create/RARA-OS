@@ -65,10 +65,10 @@ export class Restore {
   @Column({ type: 'varchar', length: 500, nullable: true })
   errorMessage: string | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   startedAt: Date | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   completedAt: Date | null;
 
   @Column({ type: 'integer', nullable: true })

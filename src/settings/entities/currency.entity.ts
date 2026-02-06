@@ -42,7 +42,7 @@ export class Currency {
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   exchangeRateUpdatedAt: Date;
 
   @Column({ type: 'varchar', length: 50 })

@@ -27,7 +27,7 @@ export class TenantInvoice {
   @Column({ type: 'varchar', length: 50, default: 'PENDING' })
   status: string;
 
-  @Column({ type: 'datetime' })
+  @Column({ type: 'timestamp' })
   dueDate: Date;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
@@ -57,7 +57,7 @@ export class TenantInvoice {
   @Column({ type: 'varchar', length: 255, nullable: true })
   paymentReference: string;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   paidAt: Date;
 
   @Column({ type: 'text', nullable: true })

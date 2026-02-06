@@ -62,10 +62,10 @@ export class WebhookLog {
   @Column({ type: 'varchar', length: 500, nullable: true })
   errorMessage: string | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   sentAt: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   nextRetryAt: Date | null;
 
   @CreateDateColumn()

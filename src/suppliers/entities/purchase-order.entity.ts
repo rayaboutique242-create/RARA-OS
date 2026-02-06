@@ -47,13 +47,13 @@ export class PurchaseOrder {
   @Column({ type: 'varchar', enum: PurchaseOrderPriority, default: PurchaseOrderPriority.NORMAL })
   priority: PurchaseOrderPriority;
 
-  @Column({ name: 'order_date', type: 'datetime' })
+  @Column({ name: 'order_date', type: 'timestamp' })
   orderDate: Date;
 
-  @Column({ name: 'expected_date', type: 'datetime', nullable: true })
+  @Column({ name: 'expected_date', type: 'timestamp', nullable: true })
   expectedDate: Date;
 
-  @Column({ name: 'received_date', type: 'datetime', nullable: true })
+  @Column({ name: 'received_date', type: 'timestamp', nullable: true })
   receivedDate: Date;
 
   @Column({ name: 'total_items', type: 'integer', default: 0 })
@@ -116,7 +116,7 @@ export class PurchaseOrder {
   @Column({ name: 'approved_by', type: 'varchar', nullable: true })
   approvedBy: string;
 
-  @Column({ name: 'approved_at', type: 'datetime', nullable: true })
+  @Column({ name: 'approved_at', type: 'timestamp', nullable: true })
   approvedAt: Date;
 
   @Column({ type: 'simple-json', nullable: true })

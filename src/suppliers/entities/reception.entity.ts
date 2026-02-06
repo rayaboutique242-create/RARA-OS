@@ -40,7 +40,7 @@ export class Reception {
   @Column({ type: 'varchar', enum: ReceptionStatus, default: ReceptionStatus.PENDING })
   status: ReceptionStatus;
 
-  @Column({ name: 'reception_date', type: 'datetime' })
+  @Column({ name: 'reception_date', type: 'timestamp' })
   receptionDate: Date;
 
   @Column({ name: 'delivery_note_number', type: 'varchar', nullable: true })
@@ -82,7 +82,7 @@ export class Reception {
   @Column({ name: 'inspected_by', type: 'varchar', nullable: true })
   inspectedBy: string;
 
-  @Column({ name: 'inspected_at', type: 'datetime', nullable: true })
+  @Column({ name: 'inspected_at', type: 'timestamp', nullable: true })
   inspectedAt: Date;
 
   @Column({ type: 'simple-json', nullable: true })
