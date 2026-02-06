@@ -1,0 +1,681 @@
+﻿{
+  "info": {
+    "_postman_id": "raya-api-collection",
+    "name": "Raya API - Gestion Boutique",
+    "description": "Collection complete pour l API de gestion de boutique Raya.\n\nBase URL: http://localhost:3000/api\n\nEtapes:\n1. Executer 'Login' pour obtenir un token\n2. Le token est automatiquement sauvegarde dans la variable {{accessToken}}\n3. Toutes les autres requetes utilisent ce token",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "tenantId", "value": "tenant-001" },
+    { "key": "productId", "value": "" },
+    { "key": "orderId", "value": "" },
+    { "key": "customerId", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "1. Auth",
+      "description": "Authentification et gestion des tokens",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.accessToken) {",
+                  "    pm.collectionVariables.set('accessToken', jsonData.accessToken);",
+                  "    pm.collectionVariables.set('refreshToken', jsonData.refreshToken);",
+                  "    pm.test('Login successful', function() {",
+                  "        pm.response.to.have.status(200);",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@raya.com\",\n  \"password\": \"Admin123!\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Connecte un utilisateur et retourne les tokens JWT"
+          }
+        },
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nouveau@raya.com\",\n  \"username\": \"nouveau\",\n  \"password\": \"Password123!\",\n  \"firstName\": \"Jean\",\n  \"lastName\": \"Dupont\",\n  \"phone\": \"+225 07 08 09 10\",\n  \"tenantId\": \"{{tenantId}}\",\n  \"role\": \"VENDEUR\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/register",
+            "description": "Cree un nouveau compte utilisateur"
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/refresh",
+            "description": "Genere un nouveau accessToken"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Products",
+      "description": "Gestion des produits et stocks",
+      "item": [
+        {
+          "name": "List Products",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/products?page=1&limit=20&sortBy=name&sortOrder=ASC",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "sortBy", "value": "name" },
+                { "key": "sortOrder", "value": "ASC" },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "categoryId", "value": "", "disabled": true },
+                { "key": "status", "value": "active", "disabled": true }
+              ]
+            },
+            "description": "Liste tous les produits avec pagination et filtres"
+          }
+        },
+        {
+          "name": "Get Product",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/products/{{productId}}",
+            "description": "Recupere les details d un produit par son ID"
+          }
+        },
+        {
+          "name": "Get Product by SKU",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/products/sku/IPHONE15PRO",
+            "description": "Recherche un produit par code SKU"
+          }
+        },
+        {
+          "name": "Get Product by Barcode",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/products/barcode/1234567890123",
+            "description": "Recherche un produit par code-barres"
+          }
+        },
+        {
+          "name": "Create Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.id) {",
+                  "    pm.collectionVariables.set('productId', jsonData.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"iPhone 15 Pro Max 256GB\",\n  \"sku\": \"IPH15PM256\",\n  \"barcode\": \"194253456789\",\n  \"description\": \"Smartphone Apple derniere generation avec puce A17 Pro\",\n  \"purchasePrice\": 750000,\n  \"sellingPrice\": 950000,\n  \"stockQuantity\": 25,\n  \"minStockLevel\": 5,\n  \"categoryId\": \"uuid-category\",\n  \"status\": \"active\"\n}"
+            },
+            "url": "{{baseUrl}}/products",
+            "description": "Ajoute un nouveau produit au catalogue"
+          }
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"iPhone 15 Pro Max 256GB - Titanium\",\n  \"sellingPrice\": 1000000,\n  \"description\": \"Edition Titanium naturel\"\n}"
+            },
+            "url": "{{baseUrl}}/products/{{productId}}",
+            "description": "Met a jour un produit existant"
+          }
+        },
+        {
+          "name": "Update Stock",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 50\n}"
+            },
+            "url": "{{baseUrl}}/products/{{productId}}/stock",
+            "description": "Definit la quantite absolue du stock"
+          }
+        },
+        {
+          "name": "Adjust Stock",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"adjustment\": -5\n}"
+            },
+            "url": "{{baseUrl}}/products/{{productId}}/stock/adjust",
+            "description": "Ajuste le stock (+/-)"
+          }
+        },
+        {
+          "name": "Product Stats",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/products/stats",
+            "description": "Statistiques globales des produits"
+          }
+        },
+        {
+          "name": "Low Stock Products",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/products/low-stock",
+            "description": "Liste des produits en rupture"
+          }
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/products/{{productId}}",
+            "description": "Supprime un produit du catalogue"
+          }
+        }
+      ]
+    }
+    ,
+    {
+      "name": "3. Orders",
+      "description": "Gestion des commandes",
+      "item": [
+        {
+          "name": "List Orders",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/orders?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "status", "value": "", "disabled": true },
+                { "key": "customerId", "value": "", "disabled": true },
+                { "key": "startDate", "value": "", "disabled": true },
+                { "key": "endDate", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Order",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/orders/{{orderId}}"
+          }
+        },
+        {
+          "name": "Create Order",
+          "event": [{ "listen": "test", "script": { "exec": ["var json = pm.response.json(); if(json.id) pm.collectionVariables.set('orderId', json.id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"customerName\": \"Marie Kouassi\",\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"productName\": \"iPhone 15 Pro\",\n      \"quantity\": 2,\n      \"unitPrice\": 950000\n    }\n  ],\n  \"notes\": \"Livraison urgente\"\n}"
+            },
+            "url": "{{baseUrl}}/orders"
+          }
+        },
+        {
+          "name": "Update Order Status",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"confirmed\"\n}" },
+            "url": "{{baseUrl}}/orders/{{orderId}}/status"
+          }
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Demande client\"\n}" },
+            "url": "{{baseUrl}}/orders/{{orderId}}/cancel"
+          }
+        },
+        {
+          "name": "Order Statistics",
+          "request": { "method": "GET", "url": "{{baseUrl}}/orders/stats" }
+        }
+      ]
+    },
+    {
+      "name": "4. Customers",
+      "description": "Gestion des clients CRM",
+      "item": [
+        {
+          "name": "List Customers",
+          "request": { "method": "GET", "url": "{{baseUrl}}/customers?page=1&limit=20" }
+        },
+        {
+          "name": "Get Customer",
+          "request": { "method": "GET", "url": "{{baseUrl}}/customers/{{customerId}}" }
+        },
+        {
+          "name": "Create Customer",
+          "event": [{ "listen": "test", "script": { "exec": ["var json = pm.response.json(); if(json.id) pm.collectionVariables.set('customerId', json.id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Marie\",\n  \"lastName\": \"Kouassi\",\n  \"email\": \"marie.kouassi@email.ci\",\n  \"phone\": \"+225 07 08 09 10 11\",\n  \"city\": \"Abidjan\",\n  \"country\": \"Cote d'Ivoire\"\n}"
+            },
+            "url": "{{baseUrl}}/customers"
+          }
+        },
+        {
+          "name": "Update Customer",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"+225 05 00 00 00 00\"\n}" },
+            "url": "{{baseUrl}}/customers/{{customerId}}"
+          }
+        },
+        {
+          "name": "Customer Order History",
+          "request": { "method": "GET", "url": "{{baseUrl}}/customers/{{customerId}}/orders" }
+        },
+        {
+          "name": "Delete Customer",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/customers/{{customerId}}" }
+        }
+      ]
+    },
+    {
+      "name": "5. Categories",
+      "item": [
+        { "name": "List Categories", "request": { "method": "GET", "url": "{{baseUrl}}/categories" } },
+        { "name": "Get Category", "request": { "method": "GET", "url": "{{baseUrl}}/categories/:id" } },
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Smartphones\",\n  \"description\": \"Telephones intelligents\",\n  \"slug\": \"smartphones\"\n}" },
+            "url": "{{baseUrl}}/categories"
+          }
+        },
+        {
+          "name": "Update Category",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"description\": \"Nouvelle description\"\n}" },
+            "url": "{{baseUrl}}/categories/:id"
+          }
+        },
+        { "name": "Delete Category", "request": { "method": "DELETE", "url": "{{baseUrl}}/categories/:id" } }
+      ]
+    },
+    {
+      "name": "6. Reports",
+      "item": [
+        { "name": "Dashboard", "request": { "method": "GET", "url": "{{baseUrl}}/reports/dashboard" } },
+        { "name": "Sales Report", "request": { "method": "GET", "url": "{{baseUrl}}/reports/sales?startDate=2026-01-01&endDate=2026-01-31" } },
+        { "name": "Inventory Report", "request": { "method": "GET", "url": "{{baseUrl}}/reports/inventory" } },
+        { "name": "Top Products", "request": { "method": "GET", "url": "{{baseUrl}}/reports/products/top?limit=10" } },
+        { "name": "Revenue by Category", "request": { "method": "GET", "url": "{{baseUrl}}/reports/revenue/by-category" } }
+      ]
+    },
+    {
+      "name": "7. Payments",
+      "item": [
+        { "name": "List Payment Methods", "request": { "method": "GET", "url": "{{baseUrl}}/payments/methods" } },
+        {
+          "name": "Create Payment Method",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Orange Money\",\n  \"type\": \"MOBILE_MONEY\",\n  \"provider\": \"ORANGE\",\n  \"transactionFeePercent\": 1.5\n}" },
+            "url": "{{baseUrl}}/payments/methods"
+          }
+        },
+        {
+          "name": "Process Payment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"methodId\": \"uuid-method\",\n  \"amount\": 950000,\n  \"reference\": \"PAY-2026-001\"\n}" },
+            "url": "{{baseUrl}}/payments"
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Promotions",
+      "item": [
+        { "name": "List Promotions", "request": { "method": "GET", "url": "{{baseUrl}}/promotions" } },
+        {
+          "name": "Create Promotion",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"code\": \"SOLDES2026\",\n  \"name\": \"Soldes de Janvier\",\n  \"type\": \"PERCENTAGE\",\n  \"discountValue\": 20,\n  \"startDate\": \"2026-01-01\",\n  \"endDate\": \"2026-01-31\",\n  \"minimumPurchaseAmount\": 10000\n}" },
+            "url": "{{baseUrl}}/promotions"
+          }
+        },
+        {
+          "name": "Validate Coupon",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"code\": \"SOLDES2026\",\n  \"amount\": 50000\n}" },
+            "url": "{{baseUrl}}/promotions/validate"
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Inventory",
+      "item": [
+        { "name": "List Movements", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/movements?page=1&limit=20" } },
+        {
+          "name": "Create Movement",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"type\": \"IN\",\n  \"quantity\": 100,\n  \"reason\": \"Reception fournisseur\",\n  \"reference\": \"REC-2026-001\"\n}" },
+            "url": "{{baseUrl}}/inventory/movements"
+          }
+        },
+        { "name": "Stock History", "request": { "method": "GET", "url": "{{baseUrl}}/inventory/products/{{productId}}/history" } }
+      ]
+    },
+    {
+      "name": "10. Suppliers",
+      "item": [
+        { "name": "List Suppliers", "request": { "method": "GET", "url": "{{baseUrl}}/suppliers" } },
+        {
+          "name": "Create Supplier",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Tech Import CI\",\n  \"contactName\": \"Jean Konan\",\n  \"email\": \"contact@techimport.ci\",\n  \"phone\": \"+225 27 20 30 40 50\",\n  \"city\": \"Abidjan\",\n  \"paymentTerms\": \"NET_30\"\n}" },
+            "url": "{{baseUrl}}/suppliers"
+          }
+        },
+        { "name": "Dashboard Suppliers", "request": { "method": "GET", "url": "{{baseUrl}}/suppliers/dashboard" } }
+      ]
+    }
+    ,
+    {
+      "name": "11. Notifications",
+      "item": [
+        { "name": "List Notifications", "request": { "method": "GET", "url": "{{baseUrl}}/notifications" } },
+        {
+          "name": "Create Notification",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Stock bas\",\n  \"message\": \"Le produit iPhone 15 Pro est en rupture\",\n  \"type\": \"WARNING\"\n}" },
+            "url": "{{baseUrl}}/notifications"
+          }
+        },
+        { "name": "Mark as Read", "request": { "method": "PATCH", "url": "{{baseUrl}}/notifications/:id/read" } },
+        { "name": "Mark All Read", "request": { "method": "PATCH", "url": "{{baseUrl}}/notifications/read-all" } }
+      ]
+    },
+    {
+      "name": "12. Deliveries",
+      "item": [
+        { "name": "List Deliveries", "request": { "method": "GET", "url": "{{baseUrl}}/deliveries" } },
+        {
+          "name": "Create Delivery",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"address\": \"Cocody, Rue des Jardins\",\n  \"city\": \"Abidjan\",\n  \"scheduledDate\": \"2026-01-25\",\n  \"notes\": \"Appeler avant livraison\"\n}" },
+            "url": "{{baseUrl}}/deliveries"
+          }
+        },
+        { "name": "Update Status", "request": { "method": "PATCH", "body": { "mode": "raw", "raw": "{\"status\": \"in_transit\"}" }, "url": "{{baseUrl}}/deliveries/:id/status" } },
+        { "name": "Track Delivery", "request": { "method": "GET", "url": "{{baseUrl}}/deliveries/:id/tracking" } }
+      ]
+    },
+    {
+      "name": "13. Security",
+      "item": [
+        { "name": "2FA Status", "request": { "method": "GET", "url": "{{baseUrl}}/security/2fa/status" } },
+        { "name": "Enable 2FA", "request": { "method": "POST", "url": "{{baseUrl}}/security/2fa/enable" } },
+        {
+          "name": "Verify 2FA",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"code\": \"123456\"\n}" },
+            "url": "{{baseUrl}}/security/2fa/verify"
+          }
+        },
+        { "name": "Disable 2FA", "request": { "method": "POST", "body": { "mode": "raw", "raw": "{\"code\": \"123456\"}" }, "url": "{{baseUrl}}/security/2fa/disable" } },
+        { "name": "Security Settings", "request": { "method": "GET", "url": "{{baseUrl}}/security/settings" } }
+      ]
+    },
+    {
+      "name": "14. Settings",
+      "item": [
+        { "name": "Get All Settings", "request": { "method": "GET", "url": "{{baseUrl}}/settings" } },
+        { "name": "Initialize Settings", "request": { "method": "POST", "url": "{{baseUrl}}/settings/initialize" } },
+        {
+          "name": "Update Setting",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"value\": \"XOF\"\n}" },
+            "url": "{{baseUrl}}/settings/currency"
+          }
+        }
+      ]
+    },
+    {
+      "name": "15. Audit",
+      "item": [
+        { "name": "List Audit Logs", "request": { "method": "GET", "url": "{{baseUrl}}/audit/logs?page=1&limit=50" } },
+        { "name": "Get Log", "request": { "method": "GET", "url": "{{baseUrl}}/audit/logs/:id" } },
+        { "name": "Audit Statistics", "request": { "method": "GET", "url": "{{baseUrl}}/audit/stats" } }
+      ]
+    },
+    {
+      "name": "16. Tenants",
+      "item": [
+        { "name": "List Tenants", "request": { "method": "GET", "url": "{{baseUrl}}/tenants" } },
+        { "name": "Get Tenant", "request": { "method": "GET", "url": "{{baseUrl}}/tenants/{{tenantId}}" } },
+        {
+          "name": "Create Tenant",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Boutique Cocody\",\n  \"domain\": \"cocody.raya-boutique.com\",\n  \"email\": \"contact@cocody.ci\",\n  \"phone\": \"+225 27 22 00 00 00\"\n}" },
+            "url": "{{baseUrl}}/tenants"
+          }
+        },
+        { "name": "Tenant Dashboard", "request": { "method": "GET", "url": "{{baseUrl}}/tenants/{{tenantId}}/dashboard" } }
+      ]
+    },
+    {
+      "name": "17. Analytics",
+      "item": [
+        { "name": "Dashboard Analytics", "request": { "method": "GET", "url": "{{baseUrl}}/analytics/dashboard" } },
+        { "name": "Sales Trends", "request": { "method": "GET", "url": "{{baseUrl}}/analytics/sales/trends?period=month" } },
+        { "name": "Customer Analytics", "request": { "method": "GET", "url": "{{baseUrl}}/analytics/customers" } },
+        { "name": "Product Performance", "request": { "method": "GET", "url": "{{baseUrl}}/analytics/products/performance" } }
+      ]
+    },
+    {
+      "name": "18. Loyalty",
+      "item": [
+        { "name": "List Programs", "request": { "method": "GET", "url": "{{baseUrl}}/loyalty/programs" } },
+        { "name": "Initialize Program", "request": { "method": "POST", "url": "{{baseUrl}}/loyalty/programs/initialize" } },
+        { "name": "Customer Points", "request": { "method": "GET", "url": "{{baseUrl}}/loyalty/customers/{{customerId}}/points" } },
+        {
+          "name": "Add Points",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"points\": 500,\n  \"reason\": \"Achat\"\n}" },
+            "url": "{{baseUrl}}/loyalty/points/add"
+          }
+        }
+      ]
+    },
+    {
+      "name": "19. Exports",
+      "item": [
+        { "name": "Export Products CSV", "request": { "method": "GET", "url": "{{baseUrl}}/exports/products?format=csv" } },
+        { "name": "Export Orders Excel", "request": { "method": "GET", "url": "{{baseUrl}}/exports/orders?format=xlsx&startDate=2026-01-01&endDate=2026-01-31" } },
+        { "name": "Export Customers", "request": { "method": "GET", "url": "{{baseUrl}}/exports/customers?format=csv" } }
+      ]
+    },
+    {
+      "name": "20. Webhooks",
+      "item": [
+        { "name": "List Webhooks", "request": { "method": "GET", "url": "{{baseUrl}}/webhooks" } },
+        {
+          "name": "Create Webhook",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"url\": \"https://exemple.com/webhook\",\n  \"events\": [\"order.created\", \"payment.received\"],\n  \"secret\": \"mon-secret-webhook\"\n}" },
+            "url": "{{baseUrl}}/webhooks"
+          }
+        },
+        { "name": "Test Webhook", "request": { "method": "POST", "url": "{{baseUrl}}/webhooks/:id/test" } }
+      ]
+    },
+    {
+      "name": "21. Returns",
+      "item": [
+        { "name": "List Returns", "request": { "method": "GET", "url": "{{baseUrl}}/returns" } },
+        {
+          "name": "Create Return",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"reason\": \"Produit defectueux\",\n  \"items\": [{\n    \"productId\": \"{{productId}}\",\n    \"quantity\": 1\n  }]\n}" },
+            "url": "{{baseUrl}}/returns"
+          }
+        },
+        { "name": "Process Return", "request": { "method": "POST", "body": { "mode": "raw", "raw": "{\"status\": \"approved\", \"refundAmount\": 950000}" }, "url": "{{baseUrl}}/returns/:id/process" } }
+      ]
+    },
+    {
+      "name": "22. Currencies",
+      "item": [
+        { "name": "List Currencies", "request": { "method": "GET", "url": "{{baseUrl}}/currencies" } },
+        { "name": "Exchange Rates", "request": { "method": "GET", "url": "{{baseUrl}}/currencies/rates" } },
+        { "name": "Convert Amount", "request": { "method": "GET", "url": "{{baseUrl}}/currencies/convert?from=XOF&to=EUR&amount=100000" } }
+      ]
+    },
+    {
+      "name": "23. Messaging",
+      "item": [
+        { "name": "List Messages", "request": { "method": "GET", "url": "{{baseUrl}}/messaging" } },
+        {
+          "name": "Send SMS",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"to\": \"+225 07 08 09 10 11\",\n  \"message\": \"Votre commande est prete\",\n  \"type\": \"SMS\"\n}" },
+            "url": "{{baseUrl}}/messaging/send"
+          }
+        }
+      ]
+    },
+    {
+      "name": "24. Appointments",
+      "item": [
+        { "name": "List Appointments", "request": { "method": "GET", "url": "{{baseUrl}}/appointments" } },
+        {
+          "name": "Create Appointment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"date\": \"2026-01-25\",\n  \"time\": \"10:00\",\n  \"service\": \"Consultation\",\n  \"notes\": \"Premier rendez-vous\"\n}" },
+            "url": "{{baseUrl}}/appointments"
+          }
+        }
+      ]
+    },
+    {
+      "name": "25. Backup",
+      "item": [
+        { "name": "List Backups", "request": { "method": "GET", "url": "{{baseUrl}}/backup" } },
+        { "name": "Create Backup", "request": { "method": "POST", "url": "{{baseUrl}}/backup/create" } },
+        { "name": "Restore Backup", "request": { "method": "POST", "url": "{{baseUrl}}/backup/:id/restore" } }
+      ]
+    },
+    {
+      "name": "26. Files",
+      "item": [
+        { "name": "List Files", "request": { "method": "GET", "url": "{{baseUrl}}/files" } },
+        {
+          "name": "Upload File",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "" },
+                { "key": "folder", "value": "products", "type": "text" }
+              ]
+            },
+            "url": "{{baseUrl}}/files/upload"
+          }
+        },
+        { "name": "Delete File", "request": { "method": "DELETE", "url": "{{baseUrl}}/files/:id" } }
+      ]
+    }
+  ]
+}
+

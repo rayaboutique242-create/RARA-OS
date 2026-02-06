@@ -1,0 +1,44 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Commit message validation hook
+# Validates commit messages follow Conventional Commits format
+# https://www.conventionalcommits.org/
+
+COMMIT_MSG_FILE=$1
+COMMIT_SOURCE=$2
+
+# Only validate on normal commits (not merge, squash, etc)
+if [ "$COMMIT_SOURCE" != "" ]; then
+  exit 0
+fi
+
+COMMIT_MSG=$(head -n1 "$COMMIT_MSG_FILE")
+
+# Conventional Commits pattern:
+# type(scope): subject
+# where type is one of: feat, fix, docs, style, refactor, perf, test, chore, ci, revert
+
+CONVENTIONAL_COMMIT_REGEX="^(feat|fix|docs|style|refactor|perf|test|chore|ci|revert)(\(.+\))?: .{1,}$"
+
+if ! echo "$COMMIT_MSG" | grep -qE "$CONVENTIONAL_COMMIT_REGEX"; then
+  echo "❌ Commit message validation failed!"
+  echo ""
+  echo "Your commit message:"
+  echo "  $COMMIT_MSG"
+  echo ""
+  echo "Must follow Conventional Commits format:"
+  echo "  type(scope): subject"
+  echo ""
+  echo "Valid types: feat, fix, docs, style, refactor, perf, test, chore, ci, revert"
+  echo ""
+  echo "Examples:"
+  echo "  ✅ feat: add user authentication"
+  echo "  ✅ fix(auth): resolve JWT expiry issue"
+  echo "  ✅ docs: update README"
+  echo "  ✅ chore: update dependencies"
+  echo ""
+  exit 1
+fi
+
+exit 0

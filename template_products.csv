@@ -1,0 +1,2 @@
+﻿sku;name;description;sellingPrice;purchasePrice;stockQuantity;minStockLevel;categoryId
+PROD-001;Exemple Produit;Description;15000;10000;50;10;

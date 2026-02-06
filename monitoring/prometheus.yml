@@ -1,0 +1,47 @@
+# Configuration Prometheus pour RAYA API
+# Scrape les métriques toutes les 15 secondes
+
+global:
+  scrape_interval: 15s       # Scraper toutes les 15 secondes
+  evaluation_interval: 15s   # Évaluer les règles toutes les 15 secondes
+  external_labels:
+    monitor: 'raya-api-monitor'
+    environment: 'production'
+
+# Règles d'alertes
+rule_files:
+  - 'alert-rules.yml'
+
+scrape_configs:
+  # RAYA API
+  - job_name: 'raya-api'
+    static_configs:
+      - targets: ['api:3000']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    scrape_timeout: 5s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+      - source_labels: [__scheme__]
+        target_label: scheme
+
+  # PostgreSQL (si exporter disponible)
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # Redis (si exporter disponible)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+# Alertmanager
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']

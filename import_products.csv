@@ -1,0 +1,4 @@
+﻿sku;name;description;sellingPrice;purchasePrice;stockQuantity;minStockLevel;categoryId
+LAPTOP-HP;HP Pavilion 15;Laptop HP 15 pouces;85000;65000;20;5;
+TABLETTE-SAM;Samsung Tab A8;Tablette Samsung;35000;25000;15;3;
+ECOUTEUR-APP;Apple AirPods;Ecouteurs sans fil;25000;18000;30;10;

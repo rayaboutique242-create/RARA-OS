@@ -1,0 +1,75 @@
+# ==============================================
+# RAYA BACKEND - E2E Tests
+# ==============================================
+# Tests d'intégration end-to-end avec SQLite in-memory
+
+name: E2E Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  test:
+    name: E2E Test Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Run unit tests
+        run: npm test -- --coverage --forceExit --passWithNoTests
+        env:
+          NODE_ENV: test
+          JWT_SECRET: e2e-test-secret-key-32chars-minimum
+          JWT_REFRESH_SECRET: e2e-test-refresh-secret
+          DATABASE_PATH: ':memory:'
+          LOG_LEVEL: error
+
+      - name: Run E2E tests
+        run: npm run test:e2e -- --forceExit --passWithNoTests
+        env:
+          NODE_ENV: test
+          JWT_SECRET: e2e-test-secret-key-32chars-minimum
+          JWT_REFRESH_SECRET: e2e-test-refresh-secret
+          DATABASE_PATH: ':memory:'
+          LOG_LEVEL: error
+          OTP_RETURN_CODE: 'true'
+
+      - name: Upload coverage
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
+
+      - name: Comment coverage on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: romeovs/lcov-reporter-action@v0.4.0
+        with:
+          lcov-file: ./coverage/lcov.info
+          delete-old-comments: true

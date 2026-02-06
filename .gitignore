@@ -1,0 +1,59 @@
+# ==============================================
+# RAYA BACKEND - .gitignore
+# ==============================================
+
+# ==================== Environment & Secrets ====================
+.env
+.env.local
+.env.*.local
+.env.production
+.env.docker
+!.env.example
+
+# ==================== Dependencies ====================
+node_modules/
+package-lock.json
+
+# ==================== Build ====================
+dist/
+build/
+*.js.map
+*.d.ts
+!src/**/*.d.ts
+
+# ==================== Database ====================
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+data/
+
+# ==================== Uploads & Backups ====================
+uploads/
+backups/
+logs/
+
+# ==================== IDE ====================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ==================== OS ====================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==================== Test ====================
+coverage/
+.nyc_output/
+test-results/
+
+# ==================== Misc ====================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.dump
+*.mdmp

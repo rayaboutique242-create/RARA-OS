@@ -1,0 +1,88 @@
+# ==============================================
+# RAYA BACKEND - Docker Ignore
+# ==============================================
+
+# Dépendances
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Build outputs
+dist
+
+# Tests
+coverage
+.nyc_output
+*.spec.ts
+*.e2e-spec.ts
+
+# IDE & Editeur
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Environment files (les valeurs sont fournies au runtime)
+.env
+.env.*
+!.env.example
+!.env.docker
+
+# Logs
+logs
+*.log
+
+# Données locales
+data/*.sqlite
+uploads/*
+!uploads/.gitkeep
+backups/*
+!backups/.gitkeep
+
+# Documentation
+docs
+*.md
+!README.md
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# Docker files eux-mêmes
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Scripts non nécessaires au runtime
+scripts/*.sh
+scripts/*.ps1
+
+# Fichiers de config dev
+.eslintrc*
+.prettierrc*
+.editorconfig
+tsconfig.build.json
+nest-cli.json
+
+# Tests
+test
+__tests__
+*.test.ts
+*.spec.ts
+
+# Temp
+tmp
+temp
+.cache

@@ -1,0 +1,378 @@
+# ==============================================
+# RAYA BACKEND - CI/CD Pipeline
+# ==============================================
+# Pipeline complet : Lint → Tests → Build → Docker → Deploy
+# Staging : auto-deploy sur push develop
+# Production : auto-deploy sur tags v*
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ['v*']
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ==================== Lint & Type Check ====================
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: Check code formatting
+        run: npx prettier --check "src/**/*.ts" "test/**/*.ts"
+
+  # ==================== Unit Tests ====================
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test -- --coverage --passWithNoTests --forceExit
+        env:
+          NODE_ENV: test
+          JWT_SECRET: ci-test-secret-key-32chars-minimum
+          JWT_REFRESH_SECRET: ci-test-refresh-secret
+          DATABASE_PATH: ':memory:'
+
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
+
+  # ==================== E2E Tests ====================
+  test-e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run E2E tests
+        run: npm run test:e2e -- --passWithNoTests --forceExit
+        env:
+          NODE_ENV: test
+          JWT_SECRET: ci-test-secret-key-32chars-minimum
+          JWT_REFRESH_SECRET: ci-test-refresh-secret
+          DATABASE_PATH: ':memory:'
+          LOG_LEVEL: error
+
+  # ==================== Build ====================
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: [test, test-e2e]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Verify build output
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "❌ dist/ directory missing after build"
+            exit 1
+          fi
+          echo "✅ Build OK — $(find dist -name '*.js' | wc -l) JS files generated"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+  # ==================== Security Audit ====================
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    needs: lint
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high || true
+
+      - name: Check for critical vulnerabilities
+        run: |
+          CRITICAL=$(npm audit --json 2>/dev/null | jq '.metadata.vulnerabilities.critical // 0')
+          HIGH=$(npm audit --json 2>/dev/null | jq '.metadata.vulnerabilities.high // 0')
+          echo "Critical: $CRITICAL, High: $HIGH"
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "❌ Critical vulnerabilities detected!"
+            npm audit --audit-level=critical
+            exit 1
+          fi
+
+  # ==================== Docker Build & Push ====================
+  docker:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    needs: build
+    if: >
+      github.event_name == 'push' && (
+        github.ref == 'refs/heads/main' ||
+        github.ref == 'refs/heads/develop' ||
+        startsWith(github.ref, 'refs/tags/v')
+      )
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image-tag: ${{ steps.meta.outputs.version }}
+      image-digest: ${{ steps.build-push.outputs.digest }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push Docker image
+        id: build-push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+  # ==================== Deploy Staging (develop) ====================
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_URL || 'https://staging-api.raya-boutique.com' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to staging via Railway
+        if: env.RAILWAY_TOKEN != ''
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_STAGING_TOKEN }}
+        run: |
+          npm install -g @railway/cli
+          railway link --environment staging
+          railway up --detach
+          echo "✅ Deployed to Railway staging"
+
+      - name: Deploy to staging via SSH
+        if: env.STAGING_HOST != '' && env.RAILWAY_TOKEN == ''
+        env:
+          STAGING_HOST: ${{ secrets.STAGING_HOST }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_STAGING_TOKEN }}
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER || 'deploy' }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            cd /opt/raya-backend
+            docker compose pull api
+            docker compose up -d api
+            sleep 10
+            curl -sf http://localhost:3000/api/health || exit 1
+            echo "✅ Staging deploy complete"
+
+      - name: Verify staging health
+        if: vars.STAGING_URL != ''
+        run: |
+          for i in 1 2 3 4 5; do
+            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "${{ vars.STAGING_URL }}/api/health" || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ Staging is healthy"
+              exit 0
+            fi
+            echo "⏳ Attempt $i — HTTP $STATUS, waiting 15s..."
+            sleep 15
+          done
+          echo "⚠️ Staging health check timed out (may still be starting)"
+
+  # ==================== Deploy Production (tags) ====================
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: docker
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_URL || 'https://api.raya-boutique.com' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to production via Railway
+        if: env.RAILWAY_TOKEN != ''
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_PRODUCTION_TOKEN }}
+        run: |
+          npm install -g @railway/cli
+          railway link --environment production
+          railway up --detach
+          echo "✅ Deployed to Railway production"
+
+      - name: Deploy to production via SSH
+        if: env.PRODUCTION_HOST != '' && env.RAILWAY_TOKEN == ''
+        env:
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_PRODUCTION_TOKEN }}
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER || 'deploy' }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            cd /opt/raya-backend
+            docker compose pull api
+            docker compose up -d api
+            sleep 10
+            curl -sf http://localhost:3000/api/health || exit 1
+            echo "✅ Production deploy complete"
+
+      - name: Verify production health
+        if: vars.PRODUCTION_URL != ''
+        run: |
+          for i in 1 2 3 4 5 6; do
+            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "${{ vars.PRODUCTION_URL }}/api/health" || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ Production is healthy"
+              exit 0
+            fi
+            echo "⏳ Attempt $i — HTTP $STATUS, waiting 20s..."
+            sleep 20
+          done
+          echo "❌ Production health check failed!"
+          exit 1
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ==================== Notify ====================
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always() && (needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success')
+    steps:
+      - name: Slack notification
+        if: env.SLACK_WEBHOOK != ''
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+          payload: |
+            {
+              "text": "🚀 Raya Backend deployed — ${{ github.ref_name }} by ${{ github.actor }}"
+            }

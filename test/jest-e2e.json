@@ -1,0 +1,31 @@
+{
+  "testEnvironment": "node",
+  "rootDir": ".",
+  "moduleNameMapper": {
+    "^src/(.*)$": "<rootDir>/../src/$1"
+  },
+  "moduleFileExtensions": [
+    "js",
+    "json",
+    "ts"
+  ],
+  "testRegex": ".e2e-spec.ts$",
+  "setupFilesAfterEnv": [
+    "<rootDir>/setup.ts"
+  ],
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "testTimeout": 30000,
+  "collectCoverageFrom": [
+    "../src/**/*.ts",
+    "!../src/main.ts",
+    "!../src/**/*.module.ts",
+    "!../src/**/index.ts"
+  ],
+  "coveragePathIgnorePatterns": [
+    "/node_modules/",
+    "/dist/"
+  ],
+  "verbose": true
+}

@@ -1,0 +1,246 @@
+﻿{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-01-30T10:00:00.000Z",
+  "__export_source": "insomnia.desktop.app:v2023.5.8",
+  "resources": [
+    {
+      "_id": "wrk_raya",
+      "parentId": null,
+      "modified": 1706600000000,
+      "created": 1706600000000,
+      "name": "Raya API - Gestion Boutique",
+      "description": "API complete pour la gestion de boutique multi-tenant",
+      "scope": "collection",
+      "_type": "workspace"
+    },
+    {
+      "_id": "env_base",
+      "parentId": "wrk_raya",
+      "modified": 1706600000000,
+      "created": 1706600000000,
+      "name": "Base Environment",
+      "data": {
+        "baseUrl": "http://localhost:3000/api",
+        "accessToken": "",
+        "refreshToken": "",
+        "tenantId": "tenant-001"
+      },
+      "dataPropertyOrder": { "&": ["baseUrl", "accessToken", "refreshToken", "tenantId"] },
+      "_type": "environment"
+    },
+    {
+      "_id": "fld_auth",
+      "parentId": "wrk_raya",
+      "name": "1. Auth",
+      "description": "Authentification",
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_login",
+      "parentId": "fld_auth",
+      "name": "Login",
+      "url": "{{ _.baseUrl }}/auth/login",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"admin@raya.com\",\n  \"password\": \"Admin123!\"\n}"
+      },
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "_type": "request"
+    },
+    {
+      "_id": "req_register",
+      "parentId": "fld_auth",
+      "name": "Register",
+      "url": "{{ _.baseUrl }}/auth/register",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"nouveau@raya.com\",\n  \"username\": \"nouveau\",\n  \"password\": \"Password123!\",\n  \"firstName\": \"Jean\",\n  \"lastName\": \"Dupont\",\n  \"tenantId\": \"{{ _.tenantId }}\",\n  \"role\": \"VENDEUR\"\n}"
+      },
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "_type": "request"
+    },
+    {
+      "_id": "req_refresh",
+      "parentId": "fld_auth",
+      "name": "Refresh Token",
+      "url": "{{ _.baseUrl }}/auth/refresh",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"refreshToken\": \"{{ _.refreshToken }}\"\n}"
+      },
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "_type": "request"
+    },
+    {
+      "_id": "fld_products",
+      "parentId": "wrk_raya",
+      "name": "2. Products",
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_list_products",
+      "parentId": "fld_products",
+      "name": "List Products",
+      "url": "{{ _.baseUrl }}/products",
+      "method": "GET",
+      "parameters": [
+        { "name": "page", "value": "1" },
+        { "name": "limit", "value": "20" }
+      ],
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.accessToken }}" }],
+      "_type": "request"
+    },
+    {
+      "_id": "req_create_product",
+      "parentId": "fld_products",
+      "name": "Create Product",
+      "url": "{{ _.baseUrl }}/products",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"iPhone 15 Pro\",\n  \"sku\": \"IPH15PRO\",\n  \"sellingPrice\": 950000,\n  \"purchasePrice\": 750000,\n  \"stockQuantity\": 25,\n  \"minStockLevel\": 5\n}"
+      },
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.accessToken }}" },
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "_type": "request"
+    },
+    {
+      "_id": "req_get_product",
+      "parentId": "fld_products",
+      "name": "Get Product",
+      "url": "{{ _.baseUrl }}/products/:id",
+      "method": "GET",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.accessToken }}" }],
+      "_type": "request"
+    },
+    {
+      "_id": "req_product_stats",
+      "parentId": "fld_products",
+      "name": "Product Stats",
+      "url": "{{ _.baseUrl }}/products/stats",
+      "method": "GET",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.accessToken }}" }],
+      "_type": "request"
+    },
+    {
+      "_id": "fld_orders",
+      "parentId": "wrk_raya",
+      "name": "3. Orders",
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_list_orders",
+      "parentId": "fld_orders",
+      "name": "List Orders",
+      "url": "{{ _.baseUrl }}/orders",
+      "method": "GET",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.accessToken }}" }],
+      "_type": "request"
+    },
+    {
+      "_id": "req_create_order",
+      "parentId": "fld_orders",
+      "name": "Create Order",
+      "url": "{{ _.baseUrl }}/orders",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"customerName\": \"Marie Kouassi\",\n  \"items\": [{\n    \"productId\": \"uuid\",\n    \"quantity\": 2,\n    \"unitPrice\": 950000\n  }]\n}"
+      },
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.accessToken }}" },
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "_type": "request"
+    },
+    {
+      "_id": "fld_customers",
+      "parentId": "wrk_raya",
+      "name": "4. Customers",
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_list_customers",
+      "parentId": "fld_customers",
+      "name": "List Customers",
+      "url": "{{ _.baseUrl }}/customers",
+      "method": "GET",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.accessToken }}" }],
+      "_type": "request"
+    },
+    {
+      "_id": "req_create_customer",
+      "parentId": "fld_customers",
+      "name": "Create Customer",
+      "url": "{{ _.baseUrl }}/customers",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"firstName\": \"Marie\",\n  \"lastName\": \"Kouassi\",\n  \"email\": \"marie@email.ci\",\n  \"phone\": \"+225 07 00 00 00\",\n  \"city\": \"Abidjan\"\n}"
+      },
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.accessToken }}" },
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "_type": "request"
+    },
+    {
+      "_id": "fld_reports",
+      "parentId": "wrk_raya",
+      "name": "5. Reports",
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_dashboard",
+      "parentId": "fld_reports",
+      "name": "Dashboard",
+      "url": "{{ _.baseUrl }}/reports/dashboard",
+      "method": "GET",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.accessToken }}" }],
+      "_type": "request"
+    },
+    {
+      "_id": "req_sales_report",
+      "parentId": "fld_reports",
+      "name": "Sales Report",
+      "url": "{{ _.baseUrl }}/reports/sales",
+      "method": "GET",
+      "parameters": [
+        { "name": "startDate", "value": "2026-01-01" },
+        { "name": "endDate", "value": "2026-01-31" }
+      ],
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.accessToken }}" }],
+      "_type": "request"
+    },
+    {
+      "_id": "fld_security",
+      "parentId": "wrk_raya",
+      "name": "6. Security",
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_2fa_status",
+      "parentId": "fld_security",
+      "name": "2FA Status",
+      "url": "{{ _.baseUrl }}/security/2fa/status",
+      "method": "GET",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.accessToken }}" }],
+      "_type": "request"
+    },
+    {
+      "_id": "req_2fa_enable",
+      "parentId": "fld_security",
+      "name": "Enable 2FA",
+      "url": "{{ _.baseUrl }}/security/2fa/enable",
+      "method": "POST",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.accessToken }}" }],
+      "_type": "request"
+    }
+  ]
+}
