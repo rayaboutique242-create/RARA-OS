@@ -69,12 +69,10 @@ docker-compose*
 scripts/*.sh
 scripts/*.ps1
 
-# Fichiers de config dev
+# Fichiers de config dev (keep tsconfig.build.json and nest-cli.json for build)
 .eslintrc*
 .prettierrc*
 .editorconfig
-tsconfig.build.json
-nest-cli.json
 
 # Tests
 test

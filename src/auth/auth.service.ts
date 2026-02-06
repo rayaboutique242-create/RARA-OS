@@ -3,11 +3,14 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  ConflictException,
   Logger,
   ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { UsersService } from '../users/users.service';
@@ -17,10 +20,23 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { Role } from '../common/constants/roles';
+import { Tenant } from '../tenants/entities/tenant.entity';
 
 export interface RequestMeta {
   ipAddress?: string;
   userAgent?: string;
+}
+
+export interface BootstrapDto {
+  activationCode: string;
+  tenantName: string;
+  tenantCode?: string;
+  email: string;
+  password: string;
+  firstName?: string;
+  lastName?: string;
+  currency?: string;
+  timezone?: string;
 }
 
 @Injectable()
@@ -35,6 +51,7 @@ export class AuthService {
     private configService: ConfigService,
     private sessionService: SessionService,
     private emailService: EmailService,
+    @InjectRepository(Tenant) private tenantRepository: Repository<Tenant>,
   ) {}
 
   // ==================== LOGIN ====================
@@ -123,9 +140,21 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(registerDto.password, 10);
 
+    // Auto-generate username if not provided
+    let username = registerDto.username;
+    if (!username) {
+      if (registerDto.firstName && registerDto.lastName) {
+        username = `${registerDto.firstName.toLowerCase()}${registerDto.lastName.toLowerCase()}`.replace(/\s+/g, '');
+      } else {
+        username = registerDto.email.split('@')[0];
+      }
+      // Add random suffix to ensure uniqueness
+      username = `${username}${Math.floor(Math.random() * 1000)}`;
+    }
+
     const user = await this.usersService.create({
       email: registerDto.email,
-      username: registerDto.username,
+      username: username,
       passwordHash,
       firstName: registerDto.firstName,
       lastName: registerDto.lastName,
@@ -162,6 +191,121 @@ export class AuthService {
         role: user.role,
         tenantId: user.tenantId,
       },
+    };
+  }
+
+  // ==================== BOOTSTRAP ====================
+
+  async bootstrap(dto: BootstrapDto, meta: RequestMeta = {}) {
+    // 1. Verify activation code
+    const validCode = this.configService.get<string>('APP_ACTIVATION_CODE', 'RAYA2026');
+    if (!dto.activationCode || dto.activationCode.toUpperCase().trim() !== validCode.toUpperCase().trim()) {
+      throw new BadRequestException('Code d\'activation invalide');
+    }
+
+    // 2. Check if email already exists
+    const existingUser = await this.usersService.findByEmail(dto.email);
+    if (existingUser) {
+      throw new ConflictException('Un compte avec cet email existe déjà');
+    }
+
+    // 3. Generate tenant code if not provided
+    const tenantCode = dto.tenantCode || 
+      dto.tenantName.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 8) + 
+      '-' + Date.now().toString(36).toUpperCase();
+
+    // 4. Check if tenant code exists
+    const existingTenant = await this.tenantRepository.findOne({ where: { tenantCode } });
+    if (existingTenant) {
+      throw new ConflictException('Ce code de tenant existe déjà');
+    }
+
+    // 5. Create tenant
+    const tenant = this.tenantRepository.create({
+      tenantCode,
+      name: dto.tenantName,
+      legalName: dto.tenantName,
+      email: dto.email,
+      ownerName: `${dto.firstName || ''} ${dto.lastName || ''}`.trim() || dto.email.split('@')[0],
+      ownerEmail: dto.email,
+      status: 'ACTIVE',
+      subscriptionPlan: 'PROFESSIONAL',
+      billingCurrency: dto.currency || 'XOF',
+      timezone: dto.timezone || 'Africa/Abidjan',
+      defaultLanguage: 'fr',
+      maxUsers: 10,
+      maxProducts: 500,
+      maxStores: 3,
+      maxOrdersPerMonth: 5000,
+      storageQuotaGB: 5,
+      featureInventory: true,
+      featureOrders: true,
+      featureDelivery: true,
+      featureSuppliers: true,
+      featureAdvancedReports: true,
+      featurePromotions: true,
+      featureMultiStore: true,
+      featureApi: true,
+      subscriptionStartDate: new Date(),
+      subscriptionEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
+    });
+
+    const savedTenant = await this.tenantRepository.save(tenant);
+    this.logger.log(`Bootstrap: Created tenant ${savedTenant.tenantCode} (${savedTenant.name})`);
+
+    // 6. Create admin user
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const username = dto.firstName && dto.lastName
+      ? `${dto.firstName.toLowerCase()}${dto.lastName.toLowerCase()}`.replace(/\s+/g, '')
+      : dto.email.split('@')[0];
+
+    const user = await this.usersService.create({
+      email: dto.email,
+      username: `${username}${Math.floor(Math.random() * 100)}`,
+      passwordHash,
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      role: Role.PDG,
+      tenantId: String(savedTenant.id),
+      status: 'active',
+    });
+
+    this.logger.log(`Bootstrap: Created admin user ${user.email} for tenant ${savedTenant.tenantCode}`);
+
+    // 7. Generate tokens
+    const tokens = await this.generateTokens(user);
+
+    const session = await this.sessionService.createSession(
+      user.id,
+      user.tenantId,
+      tokens.refreshToken,
+      meta,
+    );
+
+    await this.usersService.updateRefreshTokenHash(
+      user.id,
+      this.hashToken(tokens.refreshToken),
+    );
+
+    // Send welcome email
+    this.emailService.sendWelcomeEmail(user.email, user.username).catch(() => {});
+
+    return {
+      ...tokens,
+      sessionId: session.id,
+      tenant: {
+        id: savedTenant.id,
+        tenantCode: savedTenant.tenantCode,
+        name: savedTenant.name,
+      },
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+        tenantId: user.tenantId,
+      },
+      message: 'Bootstrap réussi ! Vous êtes maintenant administrateur de votre entreprise.',
     };
   }
 

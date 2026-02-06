@@ -1,23 +1,37 @@
 // src/auth/otp.service.ts
+// OTP Service avec support Redis pour environnement clusterisé
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { CacheService } from '../cache/cache.service';
 
 interface OtpEntry {
   code: string;
-  expiresAt: Date;
+  expiresAt: number; // timestamp ms
   attempts: number;
 }
 
+const OTP_PREFIX = 'otp';
+const OTP_TTL_SECONDS = 300; // 5 minutes
+const OTP_COOLDOWN_SECONDS = 60; // 1 minute entre envois
+const MAX_ATTEMPTS = 3;
+
 @Injectable()
 export class OtpService {
-  // Stockage en memoire (en prod: Redis)
-  private otpStore = new Map<string, OtpEntry>();
-  
   // Mode dev: affiche l'OTP dans les logs et la reponse
   private devMode: boolean;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private cacheService: CacheService,
+  ) {
     this.devMode = this.configService.get('NODE_ENV') !== 'production';
+  }
+
+  /**
+   * Génère la clé Redis pour un contact
+   */
+  private getOtpKey(contact: string): string {
+    return `${OTP_PREFIX}:${contact}`;
   }
 
   /**
@@ -28,15 +42,19 @@ export class OtpService {
   async sendOtp(contact: string): Promise<{ success: boolean; message: string; otp?: string }> {
     // Nettoyer le contact
     const normalizedContact = contact.trim().toLowerCase();
+    const key = this.getOtpKey(normalizedContact);
     
     // Verifier si un OTP recent existe (anti-spam)
-    const existing = this.otpStore.get(normalizedContact);
-    if (existing && existing.expiresAt > new Date()) {
-      const timeLeft = Math.ceil((existing.expiresAt.getTime() - Date.now()) / 1000);
-      if (timeLeft > 240) { // 4 min restantes = envoye il y a moins d'1 min
+    const existing = await this.cacheService.get<OtpEntry>(key);
+    if (existing) {
+      const timeLeft = Math.ceil((existing.expiresAt - Date.now()) / 1000);
+      const timeSinceCreated = OTP_TTL_SECONDS - timeLeft;
+      
+      if (timeSinceCreated < OTP_COOLDOWN_SECONDS) {
+        const waitTime = OTP_COOLDOWN_SECONDS - timeSinceCreated;
         return {
           success: false,
-          message: 'Veuillez attendre ' + (60 - (300 - timeLeft)) + ' secondes avant de redemander un code'
+          message: `Veuillez attendre ${waitTime} secondes avant de redemander un code`
         };
       }
     }
@@ -45,16 +63,17 @@ export class OtpService {
     const code = String(Math.floor(100000 + Math.random() * 900000));
     
     // Stocker avec expiration de 5 minutes
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
-    this.otpStore.set(normalizedContact, {
+    const entry: OtpEntry = {
       code,
-      expiresAt,
+      expiresAt: Date.now() + (OTP_TTL_SECONDS * 1000),
       attempts: 0
-    });
+    };
+    
+    await this.cacheService.set(key, entry, OTP_TTL_SECONDS);
 
     // En mode dev, afficher dans les logs
     if (this.devMode) {
-      console.log('[OTP] Code pour ' + normalizedContact + ': ' + code);
+      console.log(`[OTP] Code pour ${normalizedContact}: ${code}`);
       return {
         success: true,
         message: 'Code OTP envoye (mode dev)',
@@ -67,7 +86,7 @@ export class OtpService {
     
     return {
       success: true,
-      message: 'Code OTP envoye a ' + this.maskContact(normalizedContact)
+      message: `Code OTP envoye a ${this.maskContact(normalizedContact)}`
     };
   }
 
@@ -76,29 +95,37 @@ export class OtpService {
    */
   async verifyOtp(contact: string, code: string): Promise<{ valid: boolean; message: string }> {
     const normalizedContact = contact.trim().toLowerCase();
-    const entry = this.otpStore.get(normalizedContact);
+    const key = this.getOtpKey(normalizedContact);
+    
+    const entry = await this.cacheService.get<OtpEntry>(key);
 
     if (!entry) {
       throw new BadRequestException('Aucun code OTP trouve. Veuillez en demander un nouveau.');
     }
 
-    if (entry.expiresAt < new Date()) {
-      this.otpStore.delete(normalizedContact);
+    if (entry.expiresAt < Date.now()) {
+      await this.cacheService.del(key);
       throw new BadRequestException('Code OTP expire. Veuillez en demander un nouveau.');
     }
 
-    if (entry.attempts >= 3) {
-      this.otpStore.delete(normalizedContact);
+    if (entry.attempts >= MAX_ATTEMPTS) {
+      await this.cacheService.del(key);
       throw new BadRequestException('Trop de tentatives. Veuillez demander un nouveau code.');
     }
 
     if (entry.code !== code) {
+      // Incrementer les tentatives
       entry.attempts++;
-      throw new BadRequestException('Code incorrect. ' + (3 - entry.attempts) + ' tentative(s) restante(s).');
+      const remainingTtl = Math.ceil((entry.expiresAt - Date.now()) / 1000);
+      await this.cacheService.set(key, entry, remainingTtl);
+      
+      throw new BadRequestException(
+        `Code incorrect. ${MAX_ATTEMPTS - entry.attempts} tentative(s) restante(s).`
+      );
     }
 
     // Code valide - supprimer
-    this.otpStore.delete(normalizedContact);
+    await this.cacheService.del(key);
 
     return {
       valid: true,
@@ -119,15 +146,22 @@ export class OtpService {
   }
 
   /**
-   * Nettoie les OTP expires (a appeler periodiquement)
+   * Invalide tous les OTP d'un contact (utile après connexion réussie)
    */
-  cleanupExpired(): void {
-    const now = new Date();
-    for (const [contact, entry] of this.otpStore.entries()) {
-      if (entry.expiresAt < now) {
-        this.otpStore.delete(contact);
-      }
-    }
+  async invalidateOtp(contact: string): Promise<void> {
+    const normalizedContact = contact.trim().toLowerCase();
+    const key = this.getOtpKey(normalizedContact);
+    await this.cacheService.del(key);
+  }
+
+  /**
+   * Vérifie si un OTP existe pour un contact (sans le valider)
+   */
+  async hasActiveOtp(contact: string): Promise<boolean> {
+    const normalizedContact = contact.trim().toLowerCase();
+    const key = this.getOtpKey(normalizedContact);
+    const entry = await this.cacheService.get<OtpEntry>(key);
+    return entry !== undefined && entry.expiresAt > Date.now();
   }
 }
 

@@ -14,10 +14,11 @@ export class RegisterDto {
     @IsEmail({}, { message: 'Email invalide' })
     email: string;
 
-    @ApiProperty({ example: 'johndoe', description: 'Nom d utilisateur unique' })
+    @ApiPropertyOptional({ example: 'johndoe', description: 'Nom d utilisateur unique (auto-genere si non fourni)' })
+    @IsOptional()
     @IsString()
     @MinLength(3, { message: 'Le username doit contenir au moins 3 caracteres' })
-    username: string;
+    username?: string;
 
     @ApiProperty({ example: 'SecurePass123!', description: 'Mot de passe (min 6 caracteres)' })
     @IsString()

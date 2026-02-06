@@ -25,8 +25,12 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { BackupService } from './backup.service';
 import { BackupSchedulerService } from './backup-scheduler.service';
+import { PostgresBackupService } from './postgres-backup.service';
+import { CloudStorageService } from './cloud-storage.service';
 import {
   CreateBackupDto,
   RestoreBackupDto,
@@ -46,6 +50,8 @@ export class BackupController {
   constructor(
     private readonly backupService: BackupService,
     private readonly backupScheduler: BackupSchedulerService,
+    private readonly postgresBackupService: PostgresBackupService,
+    private readonly cloudStorageService: CloudStorageService,
   ) {}
 
   // ==================== BACKUP ENDPOINTS ====================
@@ -214,5 +220,91 @@ export class BackupController {
   async forceRunScheduler() {
     await this.backupScheduler.checkAndExecuteSchedules();
     return { message: 'Scheduler executed manually' };
+  }
+
+  // ==================== POSTGRESQL BACKUP ENDPOINTS ====================
+
+  @Get('postgres/status')
+  @ApiOperation({ summary: 'Statut du service de backup PostgreSQL' })
+  @ApiResponse({ status: 200, description: 'Statut du service PostgreSQL' })
+  async getPostgresBackupStatus() {
+    return this.postgresBackupService.getBackupStatus();
+  }
+
+  @Post('postgres/trigger')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'owner', 'pdg')
+  @ApiOperation({ summary: 'Declencher un backup PostgreSQL manuel' })
+  @ApiResponse({ status: 201, description: 'Backup PostgreSQL lance' })
+  async triggerPostgresBackup(@Body() body: { name?: string }) {
+    return this.postgresBackupService.triggerManualBackup(body.name);
+  }
+
+  @Post('postgres/cleanup')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'owner', 'pdg')
+  @ApiOperation({ summary: 'Appliquer la politique de retention' })
+  @ApiResponse({ status: 200, description: 'Nettoyage effectue' })
+  async enforceRetentionPolicy() {
+    return this.postgresBackupService.enforceRetentionPolicy();
+  }
+
+  // ==================== CLOUD STORAGE ENDPOINTS ====================
+
+  @Get('cloud/status')
+  @ApiOperation({ summary: 'Statut du stockage cloud (S3)' })
+  @ApiResponse({ status: 200, description: 'Statut du stockage cloud' })
+  async getCloudStorageStatus() {
+    return this.cloudStorageService.getStatus();
+  }
+
+  @Post('cloud/upload/:id')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'owner', 'pdg')
+  @ApiOperation({ summary: 'Uploader un backup vers le cloud' })
+  @ApiParam({ name: 'id', description: 'ID du backup' })
+  @ApiResponse({ status: 200, description: 'Upload vers le cloud' })
+  async uploadToCloud(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+    const backup = await this.backupService.findBackupById(id, req.user.tenantId);
+    return this.cloudStorageService.uploadBackup(backup);
+  }
+
+  @Get('cloud/list')
+  @ApiOperation({ summary: 'Lister les backups dans le cloud' })
+  @ApiResponse({ status: 200, description: 'Liste des backups cloud' })
+  async listCloudBackups(@Query('prefix') prefix?: string) {
+    return this.cloudStorageService.listBackups(prefix || 'backups/');
+  }
+
+  @Post('cloud/sync')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'owner', 'pdg')
+  @ApiOperation({ summary: 'Synchroniser les backups locaux vers le cloud' })
+  @ApiResponse({ status: 200, description: 'Synchronisation lancee' })
+  async syncToCloud() {
+    await this.cloudStorageService.syncBackupsToCloud();
+    return { message: 'Cloud sync triggered' };
+  }
+
+  // ==================== COMBINED STATUS ENDPOINT ====================
+
+  @Get('status/full')
+  @ApiOperation({ summary: 'Statut complet du systeme de backup' })
+  @ApiResponse({ status: 200, description: 'Statut complet' })
+  async getFullBackupStatus() {
+    const [scheduler, postgres, cloud, statistics] = await Promise.all([
+      this.backupScheduler.getSchedulerStatus(),
+      this.postgresBackupService.getBackupStatus(),
+      this.cloudStorageService.getStatus(),
+      this.backupService.getStatistics(undefined),
+    ]);
+
+    return {
+      scheduler,
+      postgres,
+      cloud,
+      statistics,
+      timestamp: new Date().toISOString(),
+    };
   }
 }

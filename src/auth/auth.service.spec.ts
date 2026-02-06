@@ -6,12 +6,16 @@ import { UnauthorizedException, BadRequestException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
+import { SessionService } from './services/session.service';
+import { EmailService } from './services/email.service';
 
 describe('AuthService', () => {
   let service: AuthService;
   let usersService: jest.Mocked<UsersService>;
   let jwtService: jest.Mocked<JwtService>;
   let configService: jest.Mocked<ConfigService>;
+  let sessionService: jest.Mocked<SessionService>;
+  let emailService: jest.Mocked<EmailService>;
 
   const mockUser = {
     id: '901e49bf-15c1-4a4b-9758-39fb9a92afc9',
@@ -25,6 +29,13 @@ describe('AuthService', () => {
     status: 'active',
   };
 
+  const mockSession = {
+    id: 'session-001',
+    userId: mockUser.id,
+    refreshToken: 'mock-refresh-token',
+    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+  };
+
   beforeAll(async () => {
     mockUser.passwordHash = await bcrypt.hash('Password123!', 10);
   });
@@ -35,6 +46,9 @@ describe('AuthService', () => {
       findById: jest.fn(),
       create: jest.fn(),
       updateLastLogin: jest.fn(),
+      updateRefreshTokenHash: jest.fn().mockResolvedValue(undefined),
+      incrementFailedLogin: jest.fn().mockResolvedValue(undefined),
+      resetFailedLogin: jest.fn().mockResolvedValue(undefined),
     };
 
     const mockJwtService = {
@@ -46,18 +60,39 @@ describe('AuthService', () => {
       get: jest.fn().mockReturnValue('test-secret'),
     };
 
+    const mockSessionService = {
+      createSession: jest.fn().mockResolvedValue(mockSession),
+      validateRefreshToken: jest.fn(),
+      revokeSession: jest.fn(),
+      revokeAllSessions: jest.fn(),
+      rotateRefreshToken: jest.fn(),
+      getUserSessions: jest.fn(),
+      revokeOtherSessions: jest.fn(),
+    };
+
+    const mockEmailService = {
+      sendWelcomeEmail: jest.fn().mockResolvedValue(undefined),
+      sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
+      sendPasswordChangedEmail: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: UsersService, useValue: mockUsersService },
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: SessionService, useValue: mockSessionService },
+        { provide: EmailService, useValue: mockEmailService },
       ],
     }).compile();
 
     service = module.get<AuthService>(AuthService);
     usersService = module.get(UsersService);
     jwtService = module.get(JwtService);
+    configService = module.get(ConfigService);
+    sessionService = module.get(SessionService);
+    emailService = module.get(EmailService);
     configService = module.get(ConfigService);
   });
 
@@ -145,8 +180,16 @@ describe('AuthService', () => {
 
   describe('refreshToken', () => {
     it('should return new access token for valid refresh token', async () => {
+      // Mock JWT verify to return the user ID
       jwtService.verify.mockReturnValue({ sub: mockUser.id });
+      // Mock user lookup
       usersService.findById.mockResolvedValue(mockUser as any);
+      // Mock session validation
+      sessionService.validateRefreshToken.mockResolvedValue(mockSession as any);
+      // Mock token rotation
+      sessionService.rotateRefreshToken.mockResolvedValue(undefined);
+      // Mock updateRefreshTokenHash - this was missing!
+      (usersService as any).updateRefreshTokenHash = jest.fn().mockResolvedValue(undefined);
 
       const result = await service.refreshToken('valid-refresh-token');
 

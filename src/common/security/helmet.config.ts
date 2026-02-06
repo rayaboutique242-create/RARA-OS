@@ -7,7 +7,7 @@ import { HelmetOptions } from 'helmet';
 
 /**
  * Default Helmet configuration
- * Provides comprehensive security headers
+ * Provides comprehensive security headers with Swagger UI support
  */
 export const helmetConfig: HelmetOptions = {
   // Content Security Policy
@@ -15,10 +15,10 @@ export const helmetConfig: HelmetOptions = {
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", 'data:', 'https:'],
-      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdn.jsdelivr.net'],
+      scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+      imgSrc: ["'self'", 'data:', 'https:', 'https://cdn.jsdelivr.net'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdn.jsdelivr.net'],
       connectSrc: ["'self'", process.env.FRONTEND_URL || 'http://localhost:3000'],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
@@ -94,16 +94,17 @@ export const helmetConfigDev: HelmetOptions = {
 
 /**
  * Production Helmet configuration
- * Strict security settings
+ * Strict security settings with Swagger UI support
  */
 export const helmetConfigProd: HelmetOptions = {
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", 'data:', 'https:'],
-      connectSrc: [process.env.FRONTEND_URL || 'https://raya-boutique.com'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+      scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+      imgSrc: ["'self'", 'data:', 'https:', 'https://cdn.jsdelivr.net'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdn.jsdelivr.net'],
+      connectSrc: ["'self'", process.env.FRONTEND_URL || 'https://raya-boutique.com'],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
     },

@@ -82,12 +82,13 @@ Utilisez le bouton "Authorize" pour entrer votre token JWT.
     `)
     .setVersion('2.0')
     .addBearerAuth(
-      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', name: 'JWT', description: 'Entrez votre token JWT', in: 'header' },
-      'JWT-auth',
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', description: 'Entrez votre token JWT' },
+      'bearer',
     )
     // === CORE MODULES ===
     .addTag('Auth', 'Authentification, login, register, sessions')
     .addTag('Tenants - Multi-Boutiques', 'Gestion des entreprises, magasins et abonnements')
+    .addTag('Promo Codes - SaaS', 'Codes promo pour activer les abonnements SaaS')
     .addTag('Invitations - Gestion des Adhesions', 'Invitations, codes QR et demandes d adhesion')
     .addTag('User Tenants - Memberships', 'Gestion des membres multi-entreprises')
     // === BUSINESS MODULES ===
@@ -100,12 +101,19 @@ Utilisez le bouton "Authorize" pour entrer votre token JWT.
     .addTag('Deliveries', 'Gestion des livraisons et tracking')
     .addTag('Payments', 'Paiements, transactions et remboursements')
     .addTag('Promotions', 'Promotions, coupons et remises')
+    // === COMMUNICATION ===
+    .addTag('Messaging', 'Messagerie interne et conversations')
+    .addTag('Support', 'Tickets de support utilisateur')
     // === SYSTEM MODULES ===
     .addTag('Reports', 'Rapports, exports et tableaux de bord')
     .addTag('Notifications', 'Alertes, emails et notifications stock')
     .addTag('Settings', 'Configuration boutique, devises, taxes et preferences')
     .addTag('Security', 'Securite: config, blocage IP, logs')
     .addTag('Security - 2FA', 'Authentification a deux facteurs')
+    .addTag('Health', 'Endpoints de sante et monitoring')
+    .addTag('Admin', 'Administration systeme')
+    .addTag('Monitoring', 'Metriques, alertes et logs systeme')
+    .addTag('Backups', 'Sauvegardes et restaurations')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

@@ -1,5 +1,5 @@
 ﻿// src/auth/auth.module.ts
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -17,11 +17,12 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { Session } from './entities/session.entity';
 import { UsersModule } from '../users/users.module';
+import { Tenant } from '../tenants/entities/tenant.entity';
 
 @Module({
   imports: [
     UsersModule,
-    TypeOrmModule.forFeature([Session]),
+    TypeOrmModule.forFeature([Session, Tenant]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

@@ -47,8 +47,16 @@ import { HealthModule } from './health/health.module';
 import { LifecycleModule } from './common/lifecycle/lifecycle.module';
 // NEW: Performance & Optimization
 import { PerformanceModule } from './performance/performance.module';
+// NEW: Monitoring & Logs
+import { MonitoringModule } from './monitoring/monitoring.module';
+import { AlertRule } from './monitoring/entities/alert-rule.entity';
+import { AlertEvent } from './monitoring/entities/alert-event.entity';
+import { SystemMetric } from './monitoring/entities/system-metric.entity';
+import { ErrorLog } from './monitoring/entities/error-log.entity';
 // NEW: Auth Session Entity
 import { Session } from './auth/entities/session.entity';
+// NEW: Support System
+import { SupportModule } from './support/support.module';
 // Entities imports
 import { ServiceOffering } from './appointments/entities/service-offering.entity';
 import { TimeSlot } from './appointments/entities/time-slot.entity';
@@ -111,6 +119,9 @@ import { Tenant } from './tenants/entities/tenant.entity';
 import { Store } from './tenants/entities/store.entity';
 import { TenantSubscription } from './tenants/entities/tenant-subscription.entity';
 import { TenantInvoice } from './tenants/entities/tenant-invoice.entity';
+import { PromoCode } from './tenants/entities/promo-code.entity';
+import { PromoCodeRedemption } from './tenants/entities/promo-code-redemption.entity';
+import { CustomDomain } from './tenants/entities/custom-domain.entity';
 import { File } from './files/entities/file.entity';
 import { MediaFile } from './files/entities/media-file.entity';
 import { Document } from './files/entities/document.entity';
@@ -124,6 +135,8 @@ import { LoginAttempt } from './security/entities/login-attempt.entity';
 import { BlockedIp } from './security/entities/blocked-ip.entity';
 import { UserTwoFactor } from './security/entities/user-two-factor.entity';
 import { SecurityConfig } from './security/entities/security-config.entity';
+import { SupportTicket } from './support/entities/support-ticket.entity';
+import { TicketResponse } from './support/entities/ticket-response.entity';
 // NEW: Enterprise Multi-Tenant Entities
 import { Invitation } from './invitations/entities/invitation.entity';
 import { JoinRequest } from './invitations/entities/join-request.entity';
@@ -159,6 +172,14 @@ import { validate } from './config/env.validation';
         const isPostgresUrl = databaseUrl && (databaseUrl.startsWith('postgres://') || databaseUrl.startsWith('postgresql://'));
         const dbType = isPostgresUrl ? 'postgres' : rawDbType;
         const isPostgres = dbType === 'postgres';
+        const nodeEnv = configService.get<string>('NODE_ENV');
+        
+        // IMPORTANT: synchronize should be FALSE by default - use migrations instead
+        // Only enable via DB_SYNCHRONIZE=true for initial dev setup
+        // DB_FORCE_SYNC=true bypasses the production check (emergency only)
+        const forceSync = configService.get<string>('DB_FORCE_SYNC') === 'true';
+        const synchronize = forceSync || (configService.get<string>('DB_SYNCHRONIZE') === 'true' && nodeEnv !== 'production');
+        const migrationsRun = configService.get<string>('DB_MIGRATIONS_RUN') === 'true';
 
         // Base config common to all DB types
         const baseConfig = {
@@ -170,7 +191,7 @@ import { validate } from './config/env.validation';
             Promotion, Coupon, Discount, PromotionUsage,
             Setting, Currency, TaxRate, StoreConfig,
             AuditLog, UserActivity, DataChangeHistory,
-            Tenant, Store, TenantSubscription, TenantInvoice,
+            Tenant, Store, TenantSubscription, TenantInvoice, PromoCode, PromoCodeRedemption, CustomDomain,
             File, MediaFile, Document,
             LoyaltyProgram, LoyaltyTier, LoyaltyPoints, LoyaltyReward, LoyaltyRedemption, CustomerLoyalty,
             AnalyticsSnapshot, SalesGoal, CustomReport,
@@ -184,9 +205,12 @@ import { validate } from './config/env.validation';
             LoginAttempt, BlockedIp, UserTwoFactor, SecurityConfig,
             Invitation, JoinRequest, UserTenant,
             Session,
+            SupportTicket, TicketResponse,
+            AlertRule, AlertEvent, SystemMetric, ErrorLog,
           ],
-          synchronize: configService.get<string>('NODE_ENV') !== 'production',
-          logging: configService.get<string>('NODE_ENV') === 'development',
+          synchronize,
+          migrationsRun,
+          logging: nodeEnv === 'development',
           cache: { duration: 30000 },
         };
 
@@ -261,6 +285,10 @@ import { validate } from './config/env.validation';
     LifecycleModule,
     // NEW: Performance & Optimization
     PerformanceModule,
+    // NEW: Monitoring & Logs
+    MonitoringModule,
+    // NEW: User Support System
+    SupportModule,
   ],
   controllers: [AppController],
   providers: [AppService],

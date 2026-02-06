@@ -1,6 +1,7 @@
 // src/database/data-source.ts
 // Standalone TypeORM DataSource for seed scripts and migrations
 // Reads DB config from env (supports both SQLite and PostgreSQL)
+// IMPORTANT: synchronize is disabled - use migrations instead
 import 'dotenv/config';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { join } from 'path';
@@ -13,6 +14,14 @@ function buildDataSourceOptions(): DataSourceOptions {
   const dbType = isPostgresUrl ? 'postgres' : rawDbType;
   const entities = [join(__dirname, '..', '**', '*.entity.{ts,js}')];
   const migrations = [join(__dirname, 'migrations', '*.{ts,js}')];
+  
+  // synchronize should normally be false - use migrations instead
+  // Set DB_SYNCHRONIZE=true for initial setup (will create all tables)
+  // Set DB_FORCE_SYNC=true to force sync even in production (emergency only)
+  const forceSync = process.env.DB_FORCE_SYNC === 'true';
+  const synchronize = forceSync || (process.env.DB_SYNCHRONIZE === 'true' && process.env.NODE_ENV !== 'production');
+  const logging = process.env.NODE_ENV === 'development' || process.env.DB_LOGGING === 'true';
+  const migrationsRun = process.env.DB_MIGRATIONS_RUN === 'true';
 
   if (dbType === 'postgres') {
     if (databaseUrl) {
@@ -22,8 +31,9 @@ function buildDataSourceOptions(): DataSourceOptions {
         ssl: { rejectUnauthorized: false },
         entities,
         migrations,
-        synchronize: process.env.NODE_ENV !== 'production',
-        logging: process.env.NODE_ENV === 'development',
+        synchronize,
+        migrationsRun,
+        logging,
       };
     }
 
@@ -37,8 +47,9 @@ function buildDataSourceOptions(): DataSourceOptions {
       ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
       entities,
       migrations,
-      synchronize: process.env.NODE_ENV !== 'production',
-      logging: process.env.NODE_ENV === 'development',
+      synchronize,
+      migrationsRun,
+      logging,
     };
   }
 
@@ -48,8 +59,9 @@ function buildDataSourceOptions(): DataSourceOptions {
     database: process.env.DB_DATABASE || join(__dirname, '..', '..', 'raya_dev.sqlite'),
     entities,
     migrations,
-    synchronize: true,
-    logging: false,
+    synchronize,
+    migrationsRun,
+    logging,
   };
 }
 

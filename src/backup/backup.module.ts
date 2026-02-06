@@ -5,6 +5,8 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { BackupController } from './backup.controller';
 import { BackupService } from './backup.service';
 import { BackupSchedulerService } from './backup-scheduler.service';
+import { PostgresBackupService } from './postgres-backup.service';
+import { CloudStorageService } from './cloud-storage.service';
 import { Backup, Restore, BackupSchedule } from './entities';
 
 @Module({
@@ -13,7 +15,12 @@ import { Backup, Restore, BackupSchedule } from './entities';
     ScheduleModule.forRoot(),
   ],
   controllers: [BackupController],
-  providers: [BackupService, BackupSchedulerService],
-  exports: [BackupService, BackupSchedulerService],
+  providers: [
+    BackupService,
+    BackupSchedulerService,
+    PostgresBackupService,
+    CloudStorageService,
+  ],
+  exports: [BackupService, BackupSchedulerService, PostgresBackupService, CloudStorageService],
 })
 export class BackupModule {}

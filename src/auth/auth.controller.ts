@@ -82,6 +82,87 @@ export class AuthController {
     });
   }
 
+  // ==================== ACTIVATION CODE ====================
+
+  @Post('activate')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Vérifier le code d\'activation',
+    description: 'Vérifie si le code d\'activation est valide pour débloquer l\'accès à l\'application.',
+  })
+  @ApiBody({ 
+    schema: { 
+      properties: { 
+        code: { type: 'string', example: 'RAYA2026', description: 'Code d\'activation fourni' } 
+      },
+      required: ['code']
+    } 
+  })
+  @ApiResponse({ status: 200, description: 'Code valide' })
+  @ApiResponse({ status: 400, description: 'Code invalide' })
+  async verifyActivationCode(@Body('code') code: string) {
+    const validCode = this.configService.get<string>('APP_ACTIVATION_CODE', 'RAYA2026');
+    const isValid = code && code.toUpperCase().trim() === validCode.toUpperCase().trim();
+    
+    if (!isValid) {
+      return {
+        valid: false,
+        message: 'Code d\'activation invalide',
+      };
+    }
+    
+    return {
+      valid: true,
+      message: 'Code d\'activation valide. Bienvenue sur Raya !',
+    };
+  }
+
+  // ==================== BOOTSTRAP (First tenant + admin) ====================
+
+  @Post('bootstrap')
+  @Public()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Bootstrap: Créer le premier tenant et admin',
+    description: 'Permet de créer le premier tenant et utilisateur admin avec le code d\'activation. Usage unique pour le premier déploiement.',
+  })
+  @ApiBody({ 
+    schema: { 
+      properties: { 
+        activationCode: { type: 'string', example: 'RAYA2026', description: 'Code d\'activation' },
+        tenantName: { type: 'string', example: 'Mon Entreprise', description: 'Nom de l\'entreprise' },
+        tenantCode: { type: 'string', example: 'MYCOMPANY', description: 'Code unique du tenant (optionnel)' },
+        email: { type: 'string', example: 'admin@example.com', description: 'Email de l\'admin' },
+        password: { type: 'string', example: 'SecurePass123!', description: 'Mot de passe' },
+        firstName: { type: 'string', example: 'John', description: 'Prénom' },
+        lastName: { type: 'string', example: 'Doe', description: 'Nom' },
+        currency: { type: 'string', example: 'XOF', default: 'XOF' },
+        timezone: { type: 'string', example: 'Africa/Abidjan', default: 'Africa/Abidjan' },
+      },
+      required: ['activationCode', 'tenantName', 'email', 'password']
+    } 
+  })
+  @ApiResponse({ status: 201, description: 'Tenant et admin créés avec succès' })
+  @ApiResponse({ status: 400, description: 'Code invalide ou données manquantes' })
+  @ApiResponse({ status: 409, description: 'Un tenant existe déjà' })
+  async bootstrap(@Body() body: {
+    activationCode: string;
+    tenantName: string;
+    tenantCode?: string;
+    email: string;
+    password: string;
+    firstName?: string;
+    lastName?: string;
+    currency?: string;
+    timezone?: string;
+  }, @Request() req) {
+    return this.authService.bootstrap(body, {
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+  }
+
   // ==================== PROFILE ====================
 
   @Get('me')
