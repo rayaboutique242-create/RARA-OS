@@ -23,13 +23,27 @@ async function bootstrap() {
   const nodeEnv = process.env.NODE_ENV || 'development';
   const isProd = nodeEnv === 'production';
 
+  // ==================== SECURITY: CORS ====================
+  // CORS must be configured BEFORE Helmet so preflight (OPTIONS) requests work
+  const selectedCorsConfig = isProd ? corsConfigProd : nodeEnv === 'staging' ? corsConfig : corsConfigDev;
+  app.enableCors(selectedCorsConfig);
+
+  // Explicit preflight handler — ensures OPTIONS never reaches Helmet/interceptors
+  app.use((req: any, res: any, next: any) => {
+    if (req.method === 'OPTIONS') {
+      res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+      res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,Accept,X-Tenant-ID,X-Request-ID');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.header('Access-Control-Max-Age', '86400');
+      return res.status(204).end();
+    }
+    next();
+  });
+
   // ==================== SECURITY: Helmet ====================
   const selectedHelmetConfig = isProd ? helmetConfigProd : nodeEnv === 'staging' ? helmetConfig : helmetConfigDev;
   app.use(helmet(selectedHelmetConfig));
-
-  // ==================== SECURITY: CORS ====================
-  const selectedCorsConfig = isProd ? corsConfigProd : nodeEnv === 'staging' ? corsConfig : corsConfigDev;
-  app.enableCors(selectedCorsConfig);
 
   // ==================== SECURITY: Rate Limiting ====================
   // (rate limiting interceptor registered below with performance interceptors)
