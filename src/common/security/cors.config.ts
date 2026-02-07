@@ -90,44 +90,29 @@ export const corsConfigDev: CorsOptions = {
 
 /**
  * Production CORS Configuration
- * Strict configuration for production — supports Railway auto-generated domains
+ * Allow all origins — the backend is a public API accessible from any frontend
  */
 export const corsConfigProd: CorsOptions = {
-  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-    const allowedOrigins = [
-      process.env.PRODUCTION_URL,
-      process.env.PRODUCTION_ADMIN_URL,
-      process.env.FRONTEND_URL,
-      // Railway auto-generated domains
-      process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : null,
-      // Parse comma-separated ALLOWED_ORIGINS
-      ...(process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || []),
-    ].filter(Boolean) as string[];
-
-    if (!origin || origin === 'null') {
-      // Allow requests with no origin (mobile apps, curl, file:// protocol)
-      callback(null, true);
-      return;
-    }
-
-    if (allowedOrigins.includes(origin) || origin.endsWith('.railway.app') || origin.endsWith('.rayamanager.com') || origin === 'https://rayamanager.com' || origin === 'https://app.rayamanager.com' || origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
-      callback(null, true);
-    } else {
-      callback(new Error('CORS not allowed'));
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  origin: true, // Allow ALL origins
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
   allowedHeaders: [
     'Content-Type',
     'Authorization',
     'Accept',
+    'Origin',
+    'X-Requested-With',
     'X-Tenant-ID',
     'X-Request-ID',
+    'X-Correlation-ID',
+    'Accept-Language',
+    'X-API-Key',
   ],
   exposedHeaders: [
     'X-RateLimit-Limit',
     'X-RateLimit-Remaining',
     'X-RateLimit-Reset',
+    'X-Total-Count',
+    'X-Request-ID',
   ],
   credentials: true,
   maxAge: 86400, // 24 hours

@@ -24,40 +24,6 @@ async function bootstrap() {
   const isProd = nodeEnv === 'production';
 
   // ==================== SECURITY: CORS ====================
-  // Get the underlying Express instance to add middleware FIRST
-  const expressApp = app.getHttpAdapter().getInstance();
-
-  // Handle preflight (OPTIONS) at the Express level BEFORE everything else
-  expressApp.use((req: any, res: any, next: any) => {
-    const origin = req.headers.origin;
-    
-    // Determine if origin is allowed
-    const isAllowed = !origin 
-      || origin === 'null'
-      || origin.endsWith('.railway.app')
-      || origin.startsWith('http://localhost:')
-      || origin.startsWith('http://127.0.0.1:')
-      || origin.endsWith('.rayamanager.com')
-      || origin === 'https://rayamanager.com';
-    
-    if (isAllowed && origin) {
-      res.header('Access-Control-Allow-Origin', origin);
-      res.header('Access-Control-Allow-Credentials', 'true');
-    }
-    
-    if (req.method === 'OPTIONS') {
-      res.header('Access-Control-Allow-Origin', origin || '*');
-      res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD');
-      res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,Accept,Origin,X-Requested-With,X-Tenant-ID,X-Request-ID,X-Correlation-ID,Accept-Language,X-API-Key');
-      res.header('Access-Control-Allow-Credentials', 'true');
-      res.header('Access-Control-Max-Age', '86400');
-      return res.status(204).end();
-    }
-    
-    next();
-  });
-
-  // Also enable NestJS CORS for non-preflight requests
   const selectedCorsConfig = isProd ? corsConfigProd : nodeEnv === 'staging' ? corsConfig : corsConfigDev;
   app.enableCors(selectedCorsConfig);
 
