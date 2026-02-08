@@ -131,9 +131,9 @@ export class InvitationsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Creer une demande d adhesion a un tenant' })
   @ApiResponse({ status: 201, description: 'Demande creee' })
-  async createJoinRequest(@Request() req, @Body() body: { tenantId: string; message?: string }) {
+  async createJoinRequest(@Request() req, @Body() body: { tenantId: string; requestedRole?: string; message?: string }) {
     const userId = req.user?.sub || req.user?.id;
-    return this.invitationsService.createJoinRequest(body.tenantId, userId, 'VENDEUR', body.message);
+    return this.invitationsService.createJoinRequest(body.tenantId, userId, body.requestedRole || 'VENDEUR', body.message);
   }
 
   // Alias: GET /requests (frontend compatible)

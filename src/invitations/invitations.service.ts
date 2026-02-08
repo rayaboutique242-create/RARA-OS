@@ -6,6 +6,8 @@ import { Invitation, InvitationStatus, InvitationType } from './entities/invitat
 import { JoinRequest, JoinRequestStatus } from './entities/join-request.entity';
 import { CreateInvitationDto, JoinByCodeDto } from './dto';
 import { randomBytes } from 'crypto';
+import { UserTenantsService } from '../user-tenants/user-tenants.service';
+import { JoinedVia } from '../user-tenants/entities/user-tenant.entity';
 
 @Injectable()
 export class InvitationsService {
@@ -14,6 +16,7 @@ export class InvitationsService {
     private invitationRepository: Repository<Invitation>,
     @InjectRepository(JoinRequest)
     private joinRequestRepository: Repository<JoinRequest>,
+    private readonly userTenantsService: UserTenantsService,
   ) {}
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -230,16 +233,51 @@ export class InvitationsService {
   }
 
   /**
-   * Récupérer les demandes d'adhésion d'un tenant
+   * Récupérer les demandes d'adhésion d'un tenant (enrichi avec info utilisateur)
    */
-  async findJoinRequestsByTenant(tenantId: string, status?: string): Promise<JoinRequest[]> {
-    const where: any = { tenantId };
-    if (status) where.status = status;
+  async findJoinRequestsByTenant(tenantId: string, status?: string): Promise<any[]> {
+    const statusFilter = status ? `AND jr.status = '${status}'` : '';
 
-    return this.joinRequestRepository.find({
-      where,
-      order: { createdAt: 'DESC' },
-    });
+    try {
+      const results = await this.joinRequestRepository.query(
+        `SELECT jr.*, u.email AS "userEmail", u."firstName" AS "userFirstName", u."lastName" AS "userLastName", u.username AS "userUsername"
+         FROM join_requests jr
+         LEFT JOIN users u ON CAST(jr.user_id AS VARCHAR) = CAST(u.id AS VARCHAR)
+         WHERE jr.tenant_id = $1 ${statusFilter}
+         ORDER BY jr.created_at DESC`,
+        [tenantId],
+      );
+
+      return results.map((r: any) => ({
+        id: r.id,
+        tenantId: r.tenant_id,
+        userId: r.user_id,
+        requestedRole: r.requested_role,
+        status: r.status,
+        message: r.message,
+        reviewedByUserId: r.reviewed_by_user_id,
+        reviewedAt: r.reviewed_at,
+        rejectionReason: r.rejection_reason,
+        assignedRole: r.assigned_role,
+        assignedStoreId: r.assigned_store_id,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+        // User info enrichment
+        userEmail: r.userEmail,
+        userFirstName: r.userFirstName,
+        userLastName: r.userLastName,
+        userUsername: r.userUsername,
+        userName: [r.userFirstName, r.userLastName].filter(Boolean).join(' ') || r.userUsername || 'Utilisateur',
+      }));
+    } catch (e) {
+      // Fallback if JOIN fails
+      const where: any = { tenantId };
+      if (status) where.status = status;
+      return this.joinRequestRepository.find({
+        where,
+        order: { createdAt: 'DESC' },
+      });
+    }
   }
 
   /**
@@ -281,7 +319,26 @@ export class InvitationsService {
       joinRequest.assignedStoreId = assignedStoreId;
     }
 
-    return this.joinRequestRepository.save(joinRequest);
+    const saved = await this.joinRequestRepository.save(joinRequest);
+
+    // Create the actual membership in user_tenants
+    try {
+      await this.userTenantsService.createMembership(
+        joinRequest.userId,
+        joinRequest.tenantId,
+        assignedRole,
+        JoinedVia.JOIN_REQUEST,
+        {
+          joinRequestId: joinRequest.id,
+          storeId: assignedStoreId,
+        },
+      );
+    } catch (e) {
+      // Log but don't fail — membership might already exist
+      console.warn('createMembership after approve failed:', e.message);
+    }
+
+    return saved;
   }
 
   /**

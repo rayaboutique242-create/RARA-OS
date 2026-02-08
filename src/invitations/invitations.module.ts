@@ -5,10 +5,12 @@ import { InvitationsController } from './invitations.controller';
 import { InvitationsService } from './invitations.service';
 import { Invitation } from './entities/invitation.entity';
 import { JoinRequest } from './entities/join-request.entity';
+import { UserTenantsModule } from '../user-tenants/user-tenants.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Invitation, JoinRequest]),
+    UserTenantsModule,
   ],
   controllers: [InvitationsController],
   providers: [InvitationsService],
