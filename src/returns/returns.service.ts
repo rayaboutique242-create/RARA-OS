@@ -9,6 +9,7 @@ import { ReturnPolicy } from './entities/return-policy.entity';
 import { CreateReturnDto, UpdateReturnStatusDto, ProcessRefundDto, InspectItemDto, ReturnQueryDto } from './dto/create-return.dto';
 import { CreateStoreCreditDto, UseStoreCreditDto, StoreCreditQueryDto } from './dto/store-credit.dto';
 import { CreateReturnPolicyDto, UpdateReturnPolicyDto } from './dto/return-policy.dto';
+import { requireTenantId } from '../common/tenant.guard';
 
 @Injectable()
 export class ReturnsService {
@@ -26,6 +27,7 @@ export class ReturnsService {
   // ============ RETURN REQUESTS ============
 
   async createReturn(dto: CreateReturnDto, user: any): Promise<ReturnRequest> {
+    const tid = requireTenantId(user.tenantId);
     const returnNumber = await this.generateReturnNumber();
 
     // Calculate totals
@@ -46,7 +48,7 @@ export class ReturnsService {
         unitPrice: itemDto.unitPrice,
         totalPrice: itemTotal,
         reason: itemDto.reason || null,
-        tenantId: user.tenantId || null,
+        tenantId: tid,
       });
       items.push(item);
     }
@@ -68,7 +70,7 @@ export class ReturnsService {
       refundAmount: totalAmount,
       requestedAt: new Date(),
       photos: dto.photos ? JSON.stringify(dto.photos) : null,
-      tenantId: user.tenantId || null,
+      tenantId: tid,
     });
 
     const savedReturn = await this.returnRequestRepo.save(returnRequest);
@@ -101,8 +103,8 @@ export class ReturnsService {
   }
 
   async getReturns(query: ReturnQueryDto, tenantId: string | null): Promise<any> {
-    const whereClause: any = {};
-    if (tenantId) whereClause.tenantId = tenantId;
+    const tid = requireTenantId(tenantId);
+    const whereClause: any = { tenantId: tid };
     if (query.status) whereClause.status = query.status;
     if (query.type) whereClause.type = query.type;
     if (query.customerId) whereClause.customerId = query.customerId;
@@ -336,7 +338,7 @@ export class ReturnsService {
       notes: dto.notes || null,
       issuedById: user.id,
       issuedByName: user.email || `User ${user.id}`,
-      tenantId: user.tenantId || null,
+      tenantId: requireTenantId(user.tenantId),
     });
 
     return this.storeCreditRepo.save(storeCredit);

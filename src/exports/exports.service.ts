@@ -12,6 +12,7 @@ import { CreateImportDto, ImportOptionsDto } from './dto/create-import.dto';
 import { Order, OrderStatus } from '../orders/entities/order.entity';
 import { Product } from '../products/entities/product.entity';
 import { Customer } from '../customers/entities/customer.entity';
+import { requireTenantId } from '../common/tenant.guard';
 
 @Injectable()
 export class ExportsService {
@@ -53,10 +54,11 @@ export class ExportsService {
   // ==================== EXPORTS ====================
 
   async createExport(dto: CreateExportDto, userId: number, userName: string, tenantId?: string): Promise<ExportJob> {
+    const tid = requireTenantId(tenantId);
     const job = new ExportJob();
     Object.assign(job, {
       jobCode: this.generateCode('EXP'),
-      tenantId: tenantId ?? null,
+      tenantId: tid,
       type: dto.type,
       format: dto.format,
       status: JobStatus.PENDING,
@@ -159,12 +161,10 @@ export class ExportsService {
   }
 
   private async getOrdersData(filters: any, columns: string[] | null, tenantId?: string): Promise<{ data: any[]; headers: string[] }> {
+    const tid = requireTenantId(tenantId);
     const query = this.orderRepository.createQueryBuilder('order')
-      .leftJoinAndSelect('order.items', 'items');
-
-    if (tenantId) {
-      query.andWhere('order.tenantId = :tenantId', { tenantId });
-    }
+      .leftJoinAndSelect('order.items', 'items')
+      .where('order.tenantId = :tenantId', { tenantId: tid });
     if (filters.startDate) {
       query.andWhere('order.createdAt >= :startDate', { startDate: filters.startDate });
     }
@@ -202,11 +202,9 @@ export class ExportsService {
   }
 
   private async getProductsData(filters: any, columns: string[] | null, tenantId?: string): Promise<{ data: any[]; headers: string[] }> {
-    const query = this.productRepository.createQueryBuilder('product');
-
-    if (tenantId) {
-      query.andWhere('product.tenantId = :tenantId', { tenantId });
-    }
+    const tid = requireTenantId(tenantId);
+    const query = this.productRepository.createQueryBuilder('product')
+      .where('product.tenantId = :tenantId', { tenantId: tid });
     if (filters.categoryId) {
       query.andWhere('product.categoryId = :categoryId', { categoryId: filters.categoryId });
     }
@@ -238,11 +236,9 @@ export class ExportsService {
   }
 
   private async getCustomersData(filters: any, columns: string[] | null, tenantId?: string): Promise<{ data: any[]; headers: string[] }> {
-    const query = this.customerRepository.createQueryBuilder('customer');
-
-    if (tenantId) {
-      query.andWhere('customer.tenantId = :tenantId', { tenantId });
-    }
+    const tid = requireTenantId(tenantId);
+    const query = this.customerRepository.createQueryBuilder('customer')
+      .where('customer.tenantId = :tenantId', { tenantId: tid });
     if (filters.search) {
       query.andWhere('(customer.firstName LIKE :search OR customer.lastName LIKE :search OR customer.email LIKE :search)', 
         { search: `%${filters.search}%` });
@@ -273,11 +269,9 @@ export class ExportsService {
   }
 
   private async getInventoryData(filters: any, columns: string[] | null, tenantId?: string): Promise<{ data: any[]; headers: string[] }> {
-    const query = this.productRepository.createQueryBuilder('product');
-
-    if (tenantId) {
-      query.andWhere('product.tenantId = :tenantId', { tenantId });
-    }
+    const tid = requireTenantId(tenantId);
+    const query = this.productRepository.createQueryBuilder('product')
+      .where('product.tenantId = :tenantId', { tenantId: tid });
 
     const products = await query.orderBy('product.stockQuantity', 'ASC').getMany();
 
@@ -305,12 +299,10 @@ export class ExportsService {
   }
 
   private async getSalesReportData(filters: any, tenantId?: string): Promise<{ data: any[]; headers: string[] }> {
+    const tid = requireTenantId(tenantId);
     const query = this.orderRepository.createQueryBuilder('order')
-      .where('order.status NOT IN (:...excludedStatuses)', { excludedStatuses: [OrderStatus.CANCELLED] });
-
-    if (tenantId) {
-      query.andWhere('order.tenantId = :tenantId', { tenantId });
-    }
+      .where('order.status NOT IN (:...excludedStatuses)', { excludedStatuses: [OrderStatus.CANCELLED] })
+      .andWhere('order.tenantId = :tenantId', { tenantId: tid });
     if (filters.startDate) {
       query.andWhere('order.createdAt >= :startDate', { startDate: filters.startDate });
     }

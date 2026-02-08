@@ -1,4 +1,5 @@
 // src/appointments/appointments.service.ts
+import { requireTenantId } from '../common/tenant.guard';
 import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, LessThanOrEqual, MoreThanOrEqual, In } from 'typeorm';
@@ -36,9 +37,7 @@ export class AppointmentsService {
 
   async findAllServiceOfferings(tenantId?: string): Promise<ServiceOffering[]> {
     const whereClause: any = {};
-    if (tenantId) {
-      whereClause.tenantId = tenantId;
-    }
+    whereClause.tenantId = requireTenantId(tenantId);
     return this.serviceOfferingRepository.find({
       where: whereClause,
       order: { sortOrder: 'ASC', name: 'ASC' },
@@ -47,9 +46,7 @@ export class AppointmentsService {
 
   async findActiveServiceOfferings(tenantId?: string): Promise<ServiceOffering[]> {
     const whereClause: any = { isActive: true };
-    if (tenantId) {
-      whereClause.tenantId = tenantId;
-    }
+    whereClause.tenantId = requireTenantId(tenantId);
     return this.serviceOfferingRepository.find({
       where: whereClause,
       order: { sortOrder: 'ASC', name: 'ASC' },
@@ -58,9 +55,7 @@ export class AppointmentsService {
 
   async findServiceOfferingById(id: number, tenantId?: string): Promise<ServiceOffering> {
     const whereClause: any = { id };
-    if (tenantId) {
-      whereClause.tenantId = tenantId;
-    }
+    whereClause.tenantId = requireTenantId(tenantId);
     const service = await this.serviceOfferingRepository.findOne({ where: whereClause });
     if (!service) {
       throw new NotFoundException(`Service #${id} non trouvé`);
@@ -70,9 +65,7 @@ export class AppointmentsService {
 
   async findServiceOfferingsByCategory(category: ServiceCategory, tenantId?: string): Promise<ServiceOffering[]> {
     const whereClause: any = { category, isActive: true };
-    if (tenantId) {
-      whereClause.tenantId = tenantId;
-    }
+    whereClause.tenantId = requireTenantId(tenantId);
     return this.serviceOfferingRepository.find({
       where: whereClause,
       order: { sortOrder: 'ASC' },
@@ -90,9 +83,7 @@ export class AppointmentsService {
     
     // Check for existing appointments
     const whereClause: any = { serviceOfferingId: id };
-    if (tenantId) {
-      whereClause.tenantId = tenantId;
-    }
+    whereClause.tenantId = requireTenantId(tenantId);
     const appointmentCount = await this.appointmentRepository.count({
       where: { ...whereClause, status: In([AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED]) },
     });
@@ -164,9 +155,7 @@ export class AppointmentsService {
 
   async findAllTimeSlots(tenantId?: string): Promise<TimeSlot[]> {
     const whereClause: any = {};
-    if (tenantId) {
-      whereClause.tenantId = tenantId;
-    }
+    whereClause.tenantId = requireTenantId(tenantId);
     return this.timeSlotRepository.find({
       where: whereClause,
       order: { dayOfWeek: 'ASC', startTime: 'ASC' },
@@ -175,9 +164,7 @@ export class AppointmentsService {
 
   async findTimeSlotsByDay(dayOfWeek: DayOfWeek, tenantId?: string): Promise<TimeSlot[]> {
     const whereClause: any = { dayOfWeek, isActive: true };
-    if (tenantId) {
-      whereClause.tenantId = tenantId;
-    }
+    whereClause.tenantId = requireTenantId(tenantId);
     return this.timeSlotRepository.find({
       where: whereClause,
       order: { startTime: 'ASC' },
@@ -186,9 +173,7 @@ export class AppointmentsService {
 
   async findTimeSlotById(id: number, tenantId?: string): Promise<TimeSlot> {
     const whereClause: any = { id };
-    if (tenantId) {
-      whereClause.tenantId = tenantId;
-    }
+    whereClause.tenantId = requireTenantId(tenantId);
     const slot = await this.timeSlotRepository.findOne({ where: whereClause });
     if (!slot) {
       throw new NotFoundException(`Créneau #${id} non trouvé`);
@@ -288,9 +273,7 @@ export class AppointmentsService {
       startDate: LessThanOrEqual(date),
       endDate: MoreThanOrEqual(date),
     };
-    if (tenantId) {
-      blockedWhereClause.tenantId = tenantId;
-    }
+    blockedWhereClause.tenantId = requireTenantId(tenantId);
     
     const blockedTimes = await this.blockedTimeRepository.find({
       where: blockedWhereClause,
@@ -314,9 +297,7 @@ export class AppointmentsService {
     // Check day of week is available
     const dayOfWeek = this.getDayOfWeekFromDate(date);
     const slotWhereClause: any = { dayOfWeek, isActive: true };
-    if (tenantId) {
-      slotWhereClause.tenantId = tenantId;
-    }
+    slotWhereClause.tenantId = requireTenantId(tenantId);
     
     const availableSlots = await this.timeSlotRepository.find({
       where: slotWhereClause,
@@ -340,9 +321,7 @@ export class AppointmentsService {
       appointmentDate: date,
       status: In([AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED]),
     };
-    if (tenantId) {
-      appointmentWhereClause.tenantId = tenantId;
-    }
+    appointmentWhereClause.tenantId = requireTenantId(tenantId);
     if (staffId) {
       appointmentWhereClause.staffId = staffId;
     }
@@ -366,9 +345,7 @@ export class AppointmentsService {
     
     // Get time slots for that day
     const slotWhereClause: any = { dayOfWeek, isActive: true };
-    if (tenantId) {
-      slotWhereClause.tenantId = tenantId;
-    }
+    slotWhereClause.tenantId = requireTenantId(tenantId);
     if (query.staffId) {
       slotWhereClause.staffId = query.staffId;
     }
@@ -422,9 +399,7 @@ export class AppointmentsService {
 
   async findAllAppointments(query: AppointmentQueryDto, tenantId?: string): Promise<{ data: Appointment[]; total: number }> {
     const whereClause: any = {};
-    if (tenantId) {
-      whereClause.tenantId = tenantId;
-    }
+    whereClause.tenantId = requireTenantId(tenantId);
     if (query.status) {
       whereClause.status = query.status;
     }
@@ -460,9 +435,7 @@ export class AppointmentsService {
 
   async findAppointmentById(id: number, tenantId?: string): Promise<Appointment> {
     const whereClause: any = { id };
-    if (tenantId) {
-      whereClause.tenantId = tenantId;
-    }
+    whereClause.tenantId = requireTenantId(tenantId);
     const appointment = await this.appointmentRepository.findOne({ where: whereClause });
     if (!appointment) {
       throw new NotFoundException(`Rendez-vous #${id} non trouvé`);
@@ -472,9 +445,7 @@ export class AppointmentsService {
 
   async findAppointmentByNumber(appointmentNumber: string, tenantId?: string): Promise<Appointment> {
     const whereClause: any = { appointmentNumber };
-    if (tenantId) {
-      whereClause.tenantId = tenantId;
-    }
+    whereClause.tenantId = requireTenantId(tenantId);
     const appointment = await this.appointmentRepository.findOne({ where: whereClause });
     if (!appointment) {
       throw new NotFoundException(`Rendez-vous ${appointmentNumber} non trouvé`);
@@ -485,9 +456,7 @@ export class AppointmentsService {
   async findTodayAppointments(tenantId?: string): Promise<Appointment[]> {
     const today = new Date().toISOString().split('T')[0];
     const whereClause: any = { appointmentDate: today };
-    if (tenantId) {
-      whereClause.tenantId = tenantId;
-    }
+    whereClause.tenantId = requireTenantId(tenantId);
     return this.appointmentRepository.find({
       where: whereClause,
       order: { startTime: 'ASC' },
@@ -501,9 +470,7 @@ export class AppointmentsService {
       appointmentDate: MoreThanOrEqual(today),
       status: In([AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED]),
     };
-    if (tenantId) {
-      whereClause.tenantId = tenantId;
-    }
+    whereClause.tenantId = requireTenantId(tenantId);
     return this.appointmentRepository.find({
       where: whereClause,
       order: { appointmentDate: 'ASC', startTime: 'ASC' },
@@ -693,9 +660,7 @@ export class AppointmentsService {
 
   async findAllBlockedTimes(query: BlockedTimeQueryDto, tenantId?: string): Promise<BlockedTime[]> {
     const whereClause: any = {};
-    if (tenantId) {
-      whereClause.tenantId = tenantId;
-    }
+    whereClause.tenantId = requireTenantId(tenantId);
     if (query.type) {
       whereClause.type = query.type;
     }
@@ -721,9 +686,7 @@ export class AppointmentsService {
 
   async findBlockedTimeById(id: number, tenantId?: string): Promise<BlockedTime> {
     const whereClause: any = { id };
-    if (tenantId) {
-      whereClause.tenantId = tenantId;
-    }
+    whereClause.tenantId = requireTenantId(tenantId);
     const blocked = await this.blockedTimeRepository.findOne({ where: whereClause });
     if (!blocked) {
       throw new NotFoundException(`Blocage #${id} non trouvé`);
@@ -747,9 +710,7 @@ export class AppointmentsService {
 
   async getAppointmentStats(startDate: string, endDate: string, tenantId?: string): Promise<any> {
     const whereClause: any = { appointmentDate: Between(startDate, endDate) };
-    if (tenantId) {
-      whereClause.tenantId = tenantId;
-    }
+    whereClause.tenantId = requireTenantId(tenantId);
     
     const appointments = await this.appointmentRepository.find({
       where: whereClause,
@@ -828,9 +789,7 @@ export class AppointmentsService {
     
     // Get time slots for this staff
     const slotWhereClause: any = { dayOfWeek, isActive: true };
-    if (tenantId) {
-      slotWhereClause.tenantId = tenantId;
-    }
+    slotWhereClause.tenantId = requireTenantId(tenantId);
     
     const slots = await this.timeSlotRepository.find({
       where: [
@@ -845,9 +804,7 @@ export class AppointmentsService {
       appointmentDate: date,
       status: In([AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED, AppointmentStatus.RESCHEDULED]),
     };
-    if (tenantId) {
-      apptWhereClause.tenantId = tenantId;
-    }
+    apptWhereClause.tenantId = requireTenantId(tenantId);
     
     const appointments = await this.appointmentRepository.find({
       where: apptWhereClause,
@@ -859,9 +816,7 @@ export class AppointmentsService {
       startDate: LessThanOrEqual(date),
       endDate: MoreThanOrEqual(date),
     };
-    if (tenantId) {
-      blockedWhereClause.tenantId = tenantId;
-    }
+    blockedWhereClause.tenantId = requireTenantId(tenantId);
     
     const blocked = await this.blockedTimeRepository.find({
       where: [

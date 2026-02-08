@@ -143,8 +143,8 @@ export class AnalyticsController {
   @Get('goals/:id')
   @ApiOperation({ summary: 'Get a specific goal' })
   @ApiResponse({ status: 200, description: 'Goal retrieved' })
-  getGoal(@Param('id', ParseIntPipe) id: number) {
-    return this.analyticsService.getGoalById(id);
+  getGoal(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    return this.analyticsService.getGoalById(id, user.tenantId);
   }
 
   @Post('goals')
@@ -157,22 +157,22 @@ export class AnalyticsController {
   @Put('goals/:id')
   @ApiOperation({ summary: 'Update a sales goal' })
   @ApiResponse({ status: 200, description: 'Sales goal updated' })
-  updateGoal(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateSalesGoalDto) {
-    return this.analyticsService.updateGoal(id, dto);
+  updateGoal(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateSalesGoalDto, @CurrentUser() user: any) {
+    return this.analyticsService.updateGoal(id, dto, user.tenantId);
   }
 
   @Delete('goals/:id')
   @ApiOperation({ summary: 'Delete a sales goal' })
   @ApiResponse({ status: 200, description: 'Sales goal deleted' })
-  deleteGoal(@Param('id', ParseIntPipe) id: number) {
-    return this.analyticsService.deleteGoal(id);
+  deleteGoal(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    return this.analyticsService.deleteGoal(id, user.tenantId);
   }
 
   @Post('goals/:id/progress')
   @ApiOperation({ summary: 'Update goal progress' })
   @ApiResponse({ status: 200, description: 'Goal progress updated' })
-  updateGoalProgress(@Param('id', ParseIntPipe) id: number) {
-    return this.analyticsService.updateGoalProgress(id);
+  updateGoalProgress(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    return this.analyticsService.updateGoalProgress(id, user.tenantId);
   }
 
   // ==================== CUSTOM REPORTS ====================
@@ -187,8 +187,8 @@ export class AnalyticsController {
   @Get('reports/:id')
   @ApiOperation({ summary: 'Get a custom report by ID' })
   @ApiResponse({ status: 200, description: 'Custom report retrieved' })
-  getReport(@Param('id', ParseIntPipe) id: number) {
-    return this.analyticsService.getReportById(id);
+  getReport(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    return this.analyticsService.getReportById(id, user.tenantId);
   }
 
   @Post('reports')
@@ -201,15 +201,15 @@ export class AnalyticsController {
   @Put('reports/:id')
   @ApiOperation({ summary: 'Update a custom report' })
   @ApiResponse({ status: 200, description: 'Custom report updated' })
-  updateReport(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCustomReportDto) {
-    return this.analyticsService.updateReport(id, dto);
+  updateReport(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCustomReportDto, @CurrentUser() user: any) {
+    return this.analyticsService.updateReport(id, dto, user.tenantId);
   }
 
   @Delete('reports/:id')
   @ApiOperation({ summary: 'Delete a custom report' })
   @ApiResponse({ status: 200, description: 'Custom report deleted' })
-  deleteReport(@Param('id', ParseIntPipe) id: number) {
-    return this.analyticsService.deleteReport(id);
+  deleteReport(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    return this.analyticsService.deleteReport(id, user.tenantId);
   }
 
   @Get('reports/:id/execute')

@@ -1,4 +1,5 @@
 // src/loyalty/loyalty.service.ts
+import { requireTenantId } from '../common/tenant.guard';
 import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThanOrEqual } from 'typeorm';
@@ -73,7 +74,7 @@ export class LoyaltyService {
 
   async findAllPrograms(tenantId?: string): Promise<LoyaltyProgram[]> {
     const where: Record<string, unknown> = {};
-    if (tenantId) where.tenantId = tenantId;
+    where.tenantId = requireTenantId(tenantId);
 
     return this.programRepository.find({
       where,
@@ -97,7 +98,7 @@ export class LoyaltyService {
 
   async findActiveProgram(tenantId?: string): Promise<LoyaltyProgram | null> {
     const where: Record<string, unknown> = { status: ProgramStatus.ACTIVE };
-    if (tenantId) where.tenantId = tenantId;
+    where.tenantId = requireTenantId(tenantId);
 
     return this.programRepository.findOne({
       where,
@@ -195,9 +196,7 @@ export class LoyaltyService {
 
     const qb = this.rewardRepository.createQueryBuilder('reward');
 
-    if (tenantId) {
-      qb.andWhere('reward.tenantId = :tenantId', { tenantId });
-    }
+    qb.andWhere('reward.tenantId = :tenantId', { tenantId: requireTenantId(tenantId) });
 
     if (programId) {
       qb.andWhere('reward.programId = :programId', { programId });
@@ -363,7 +362,7 @@ export class LoyaltyService {
 
   async findCustomerLoyalty(customerId: number, tenantId?: string): Promise<CustomerLoyalty> {
     const where: Record<string, unknown> = { customerId };
-    if (tenantId) where.tenantId = tenantId;
+    where.tenantId = requireTenantId(tenantId);
 
     const loyalty = await this.customerLoyaltyRepository.findOne({ where });
 
@@ -379,9 +378,7 @@ export class LoyaltyService {
 
     const qb = this.customerLoyaltyRepository.createQueryBuilder('cl');
 
-    if (tenantId) {
-      qb.andWhere('cl.tenantId = :tenantId', { tenantId });
-    }
+    qb.andWhere('cl.tenantId = :tenantId', { tenantId: requireTenantId(tenantId) });
 
     if (search) {
       qb.andWhere('(cl.customerName LIKE :search OR cl.customerEmail LIKE :search)', {
@@ -597,9 +594,7 @@ export class LoyaltyService {
 
     const qb = this.pointsRepository.createQueryBuilder('points');
 
-    if (tenantId) {
-      qb.andWhere('points.tenantId = :tenantId', { tenantId });
-    }
+    qb.andWhere('points.tenantId = :tenantId', { tenantId: requireTenantId(tenantId) });
 
     if (customerId) {
       qb.andWhere('points.customerId = :customerId', { customerId });
@@ -785,9 +780,7 @@ export class LoyaltyService {
 
     const qb = this.redemptionRepository.createQueryBuilder('r');
 
-    if (tenantId) {
-      qb.andWhere('r.tenantId = :tenantId', { tenantId });
-    }
+    qb.andWhere('r.tenantId = :tenantId', { tenantId: requireTenantId(tenantId) });
 
     if (customerId) {
       qb.andWhere('r.customerId = :customerId', { customerId });
@@ -1047,7 +1040,7 @@ export class LoyaltyService {
       expiresAt: LessThanOrEqual(now),
       transactionType: PointsTransactionType.EARN,
     };
-    if (tenantId) where.tenantId = tenantId;
+    where.tenantId = requireTenantId(tenantId);
 
     // Trouver les points expirés
     const expiredPoints = await this.pointsRepository.find({ where });
@@ -1090,7 +1083,7 @@ export class LoyaltyService {
 
   async getDashboard(tenantId?: string) {
     const where: Record<string, unknown> = {};
-    if (tenantId) where.tenantId = tenantId;
+    where.tenantId = requireTenantId(tenantId);
 
     // Totaux
     const totalMembers = await this.customerLoyaltyRepository.count({ where });
