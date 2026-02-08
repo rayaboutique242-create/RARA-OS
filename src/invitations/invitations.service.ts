@@ -175,7 +175,7 @@ export class InvitationsService {
   /**
    * Obtenir les infos publiques d'un tenant par code d'invitation
    */
-  async getTenantInfoByCode(code: string): Promise<{ tenantId: string; role: string } | null> {
+  async getTenantInfoByCode(code: string): Promise<{ tenantId: string; role: string; tenantName?: string } | null> {
     const invitation = await this.invitationRepository.findOne({
       where: { invitationCode: code.toUpperCase(), status: InvitationStatus.PENDING },
     });
@@ -184,7 +184,17 @@ export class InvitationsService {
       return null;
     }
 
-    return { tenantId: invitation.tenantId, role: invitation.role };
+    // Try to get tenant name via raw query
+    let tenantName: string | undefined;
+    try {
+      const result = await this.invitationRepository.query(
+        `SELECT name FROM tenants WHERE id = $1 LIMIT 1`,
+        [invitation.tenantId],
+      );
+      if (result && result.length > 0) tenantName = result[0].name;
+    } catch (e) {}
+
+    return { tenantId: invitation.tenantId, role: invitation.role, tenantName };
   }
 
   // ════════════════════════════════════════════════════════════════════════════
