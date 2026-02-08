@@ -297,6 +297,8 @@ import { InitialSchema1738800000000 } from './database/migrations/1738800000000-
     MonitoringModule,
     // NEW: User Support System
     SupportModule,
+    // TenantGuard (APP_GUARD) needs Tenant repository in root scope
+    TypeOrmModule.forFeature([Tenant]),
   ],
   controllers: [AppController],
   providers: [
