@@ -6,16 +6,26 @@ import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.int
  */
 export const corsConfig: CorsOptions = {
   // Allow requests from these origins
-  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+  origin: (
+    origin: string | undefined,
+    callback: (err: Error | null, allow?: boolean) => void,
+  ) => {
+    // Helper to parse comma-separated env values into array
+    const parseList = (v?: string) =>
+      (v || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+
     // Whitelist of allowed origins
     const allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:3001',
       'http://localhost:4200', // Angular default
       'http://localhost:5173', // Vite default
-      process.env.FRONTEND_URL || 'http://localhost:3000',
-      process.env.STAGING_URL || 'https://staging.raya-boutique.com',
-      process.env.PRODUCTION_URL || 'https://raya-boutique.com',
+      ...parseList(process.env.FRONTEND_URL),
+      ...parseList(process.env.STAGING_URL),
+      ...parseList(process.env.PRODUCTION_URL),
     ].filter(Boolean);
 
     if (!origin) {

@@ -15,14 +15,41 @@ export const helmetConfig: HelmetOptions = {
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdn.jsdelivr.net'],
+      styleSrc: [
+        "'self'",
+        "'unsafe-inline'",
+        'https://fonts.googleapis.com',
+        'https://cdn.jsdelivr.net',
+      ],
       scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
       imgSrc: ["'self'", 'data:', 'https:', 'https://cdn.jsdelivr.net'],
-      fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdn.jsdelivr.net'],
-      connectSrc: ["'self'", process.env.FRONTEND_URL || 'http://localhost:3000'],
+      fontSrc: [
+        "'self'",
+        'https://fonts.gstatic.com',
+        'https://cdn.jsdelivr.net',
+      ],
+      // Allow connect (XHR, fetch, websocket) from self and configured frontends
+      connectSrc: ((): string[] => {
+        const parseList = (v?: string) =>
+          (v || '')
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+        const origins = [
+          "'self'",
+          ...parseList(process.env.FRONTEND_URL),
+          process.env.STAGING_URL,
+          process.env.PRODUCTION_URL,
+        ].filter(Boolean) as string[];
+        // Ensure localhost fallback
+        if (!origins.some((o) => o.includes('localhost')))
+          origins.push('http://localhost:3000');
+        return origins;
+      })(),
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
-      upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null,
+      upgradeInsecureRequests:
+        process.env.NODE_ENV === 'production' ? [] : null,
     },
     reportOnly: false,
   },
@@ -68,7 +95,6 @@ export const helmetConfig: HelmetOptions = {
   dnsPrefetchControl: {
     allow: false,
   },
-
 };
 
 /**
@@ -103,8 +129,31 @@ export const helmetConfigProd: HelmetOptions = {
       styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
       scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
       imgSrc: ["'self'", 'data:', 'https:', 'https://cdn.jsdelivr.net'],
-      fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdn.jsdelivr.net'],
-      connectSrc: ["'self'", process.env.FRONTEND_URL || 'https://raya-boutique.com'],
+      fontSrc: [
+        "'self'",
+        'https://fonts.gstatic.com',
+        'https://cdn.jsdelivr.net',
+      ],
+      connectSrc: ((): string[] => {
+        const parseList = (v?: string) =>
+          (v || '')
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+        const origins = [
+          "'self'",
+          ...parseList(process.env.FRONTEND_URL),
+          process.env.STAGING_URL,
+          process.env.PRODUCTION_URL,
+        ].filter(Boolean) as string[];
+        if (
+          !origins.some(
+            (o) => o.includes('raya-boutique.com') || o.includes('rayamanager'),
+          )
+        )
+          origins.push('https://raya-boutique.com');
+        return origins;
+      })(),
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
     },
@@ -136,7 +185,8 @@ export const helmetConfigProd: HelmetOptions = {
  * Security headers descriptions
  */
 export const securityHeadersInfo = {
-  'Strict-Transport-Security': 'Forces HTTPS connections and prevents downgrade attacks',
+  'Strict-Transport-Security':
+    'Forces HTTPS connections and prevents downgrade attacks',
   'X-Content-Type-Options': 'Prevents MIME-sniffing attacks (nosniff)',
   'X-Frame-Options': 'Prevents clickjacking attacks (deny framing)',
   'X-XSS-Protection': 'Legacy XSS protection header',
