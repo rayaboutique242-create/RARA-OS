@@ -16,6 +16,8 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { TenantsService } from './tenants.service';import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { UserTenantsService } from '../user-tenants/user-tenants.service';
 import { JoinedVia } from '../user-tenants/entities/user-tenant.entity';import {
   CreateTenantDto,
@@ -78,7 +80,8 @@ export class TenantsController {
   }
 
   @Get('dashboard')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PDG', 'MANAGER')
   @ApiOperation({ summary: 'Dashboard administratif multi-tenants' })
   @ApiResponse({ status: 200, description: 'Statistiques des tenants' })
   async getDashboard() {
@@ -106,7 +109,8 @@ export class TenantsController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PDG')
   @ApiOperation({ summary: 'Mettre a jour un tenant' })
   @ApiParam({ name: 'id', description: 'ID du tenant' })
   @ApiResponse({ status: 200, description: 'Tenant mis a jour' })
@@ -119,7 +123,8 @@ export class TenantsController {
   }
 
   @Patch(':id/suspend')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PDG')
   @ApiOperation({ summary: 'Suspendre un tenant' })
   @ApiParam({ name: 'id', description: 'ID du tenant' })
   @ApiResponse({ status: 200, description: 'Tenant suspendu' })
@@ -131,7 +136,8 @@ export class TenantsController {
   }
 
   @Patch(':id/activate')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PDG')
   @ApiOperation({ summary: 'Activer/Reactiver un tenant' })
   @ApiParam({ name: 'id', description: 'ID du tenant' })
   @ApiResponse({ status: 200, description: 'Tenant active' })
@@ -140,7 +146,8 @@ export class TenantsController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PDG')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Supprimer un tenant (soft delete)' })
   @ApiParam({ name: 'id', description: 'ID du tenant' })
@@ -152,7 +159,8 @@ export class TenantsController {
   // ==================== STORE ENDPOINTS ====================
 
   @Post(':tenantId/stores')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PDG', 'MANAGER')
   @ApiOperation({ summary: 'Creer un magasin pour un tenant' })
   @ApiParam({ name: 'tenantId', description: 'Code du tenant' })
   @ApiResponse({ status: 201, description: 'Magasin cree' })
@@ -186,7 +194,8 @@ export class TenantsController {
   }
 
   @Patch(':tenantId/stores/:storeId')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PDG', 'MANAGER')
   @ApiOperation({ summary: 'Mettre a jour un magasin' })
   @ApiParam({ name: 'tenantId', description: 'Code du tenant' })
   @ApiParam({ name: 'storeId', description: 'ID du magasin' })
@@ -200,7 +209,8 @@ export class TenantsController {
   }
 
   @Delete(':tenantId/stores/:storeId')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PDG')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Supprimer un magasin' })
   @ApiParam({ name: 'tenantId', description: 'Code du tenant' })
@@ -216,7 +226,8 @@ export class TenantsController {
   // ==================== SUBSCRIPTION ENDPOINTS ====================
 
   @Post(':tenantId/upgrade')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PDG')
   @ApiOperation({ summary: 'Upgrader le plan d abonnement' })
   @ApiParam({ name: 'tenantId', description: 'Code du tenant' })
   @ApiResponse({ status: 201, description: 'Upgrade initie' })
@@ -228,7 +239,8 @@ export class TenantsController {
   }
 
   @Patch('subscriptions/:subscriptionId/activate')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PDG')
   @ApiOperation({ summary: 'Activer un abonnement apres paiement' })
   @ApiParam({ name: 'subscriptionId', description: 'ID de l abonnement' })
   @ApiResponse({ status: 200, description: 'Abonnement active' })
@@ -240,7 +252,8 @@ export class TenantsController {
   }
 
   @Patch('subscriptions/:subscriptionId/cancel')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PDG')
   @ApiOperation({ summary: 'Annuler un abonnement' })
   @ApiParam({ name: 'subscriptionId', description: 'ID de l abonnement' })
   @ApiResponse({ status: 200, description: 'Abonnement annule' })
