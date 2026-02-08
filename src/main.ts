@@ -23,6 +23,12 @@ async function bootstrap() {
   const nodeEnv = process.env.NODE_ENV || 'development';
   const isProd = nodeEnv === 'production';
 
+  // ==================== DB CONFIG LOG ====================
+  const dbSync = process.env.DB_SYNCHRONIZE || 'false';
+  const dbForce = process.env.DB_FORCE_SYNC || 'false';
+  const dbMigRun = process.env.DB_MIGRATIONS_RUN || 'true';
+  console.log(`[DB] synchronize=${dbSync} forceSync=${dbForce} migrationsRun=${dbMigRun} env=${nodeEnv}`);
+
   // ==================== SECURITY: CORS ====================
   const selectedCorsConfig = isProd ? corsConfigProd : nodeEnv === 'staging' ? corsConfig : corsConfigDev;
   app.enableCors(selectedCorsConfig);

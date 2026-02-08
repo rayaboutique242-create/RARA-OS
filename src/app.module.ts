@@ -142,6 +142,8 @@ import { Invitation } from './invitations/entities/invitation.entity';
 import { JoinRequest } from './invitations/entities/join-request.entity';
 import { UserTenant } from './user-tenants/entities/user-tenant.entity';
 import { validate } from './config/env.validation';
+// Migrations
+import { InitialSchema1738800000000 } from './database/migrations/1738800000000-InitialSchema';
 
 @Module({
   imports: [
@@ -210,6 +212,7 @@ import { validate } from './config/env.validation';
           ],
           synchronize,
           migrationsRun,
+          migrations: [InitialSchema1738800000000],
           logging: nodeEnv === 'development',
           cache: { duration: 30000 },
         };

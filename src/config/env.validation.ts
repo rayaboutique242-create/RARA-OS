@@ -64,7 +64,13 @@ export class EnvironmentVariables {
   DB_PASSWORD?: string;
 
   @IsOptional()
-  DB_SYNCHRONIZE?: string = 'true';
+  DB_SYNCHRONIZE?: string = 'false';
+
+  @IsOptional()
+  DB_FORCE_SYNC?: string = 'false';
+
+  @IsOptional()
+  DB_MIGRATIONS_RUN?: string = 'true';
 
   @IsOptional()
   DB_SSL?: string;
