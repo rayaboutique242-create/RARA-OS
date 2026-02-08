@@ -1,5 +1,5 @@
 // src/invitations/invitations.service.ts
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, OnModuleInit, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, MoreThan } from 'typeorm';
 import { Invitation, InvitationStatus, InvitationType } from './entities/invitation.entity';
@@ -10,7 +10,9 @@ import { UserTenantsService } from '../user-tenants/user-tenants.service';
 import { JoinedVia } from '../user-tenants/entities/user-tenant.entity';
 
 @Injectable()
-export class InvitationsService {
+export class InvitationsService implements OnModuleInit {
+  private readonly logger = new Logger(InvitationsService.name);
+
   constructor(
     @InjectRepository(Invitation)
     private invitationRepository: Repository<Invitation>,
@@ -18,6 +20,38 @@ export class InvitationsService {
     private joinRequestRepository: Repository<JoinRequest>,
     private readonly userTenantsService: UserTenantsService,
   ) {}
+
+  async onModuleInit() {
+    // Ensure expires_at and accepted_at columns use timestamptz for correct timezone handling
+    try {
+      await this.invitationRepository.query(`
+        DO $$
+        BEGIN
+          -- Migrate expires_at to timestamptz if needed
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'invitations' AND column_name = 'expires_at'
+            AND data_type = 'timestamp without time zone'
+          ) THEN
+            ALTER TABLE invitations ALTER COLUMN expires_at TYPE timestamptz USING expires_at AT TIME ZONE 'UTC';
+            RAISE NOTICE 'Migrated invitations.expires_at to timestamptz';
+          END IF;
+          -- Migrate accepted_at to timestamptz if needed
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'invitations' AND column_name = 'accepted_at'
+            AND data_type = 'timestamp without time zone'
+          ) THEN
+            ALTER TABLE invitations ALTER COLUMN accepted_at TYPE timestamptz USING accepted_at AT TIME ZONE 'UTC';
+            RAISE NOTICE 'Migrated invitations.accepted_at to timestamptz';
+          END IF;
+        END $$;
+      `);
+      this.logger.log('Invitation columns timezone migration check completed');
+    } catch (e) {
+      this.logger.warn('Invitation columns migration skipped: ' + e.message);
+    }
+  }
 
   // ════════════════════════════════════════════════════════════════════════════
   // INVITATIONS
@@ -122,25 +156,29 @@ export class InvitationsService {
       return { valid: false, error: 'Cette invitation n\'est plus valide' };
     }
 
-    if (new Date() > invitation.expiresAt) {
+    const now = Date.now();
+    const expiresTime = invitation.expiresAt ? new Date(invitation.expiresAt).getTime() : 0;
+    if (expiresTime > 0 && now > expiresTime) {
       invitation.status = InvitationStatus.EXPIRED;
       await this.invitationRepository.save(invitation);
+      this.logger.warn(`Invitation ${code} expired. expiresAt=${invitation.expiresAt}, now=${new Date().toISOString()}`);
       return { valid: false, error: 'Cette invitation a expiré' };
     }
 
-    if (invitation.currentUses >= invitation.maxUses) {
+    if (invitation.maxUses > 0 && invitation.currentUses >= invitation.maxUses) {
       return { valid: false, error: 'Cette invitation a atteint son nombre maximum d\'utilisations' };
     }
 
     // Incrémenter l'utilisation
     invitation.currentUses += 1;
-    if (invitation.currentUses >= invitation.maxUses) {
+    if (invitation.maxUses > 0 && invitation.currentUses >= invitation.maxUses) {
       invitation.status = InvitationStatus.ACCEPTED;
     }
     invitation.acceptedAt = new Date();
     invitation.acceptedByUserId = userId;
     await this.invitationRepository.save(invitation);
 
+    this.logger.log(`Invitation ${code} used by ${userId}. Uses: ${invitation.currentUses}/${invitation.maxUses}, expiresAt: ${invitation.expiresAt}`);
     return { valid: true, invitation };
   }
 
@@ -152,7 +190,13 @@ export class InvitationsService {
       where: { invitationToken: token, status: InvitationStatus.PENDING },
     });
 
-    if (!invitation || new Date() > invitation.expiresAt) {
+    if (!invitation) return null;
+
+    const now = Date.now();
+    const expiresTime = invitation.expiresAt ? new Date(invitation.expiresAt).getTime() : 0;
+    if (expiresTime > 0 && now > expiresTime) {
+      invitation.status = InvitationStatus.EXPIRED;
+      await this.invitationRepository.save(invitation);
       return null;
     }
 
@@ -178,12 +222,29 @@ export class InvitationsService {
   /**
    * Obtenir les infos publiques d'un tenant par code d'invitation
    */
-  async getTenantInfoByCode(code: string): Promise<{ tenantId: string; role: string; tenantName?: string } | null> {
+  async getTenantInfoByCode(code: string): Promise<{ tenantId: string; role: string; tenantName?: string; expiresAt?: string } | null> {
     const invitation = await this.invitationRepository.findOne({
       where: { invitationCode: code.toUpperCase(), status: InvitationStatus.PENDING },
     });
 
-    if (!invitation || new Date() > invitation.expiresAt) {
+    if (!invitation) {
+      this.logger.warn(`getTenantInfoByCode: code ${code} not found or not PENDING`);
+      return null;
+    }
+
+    const now = Date.now();
+    const expiresTime = invitation.expiresAt ? new Date(invitation.expiresAt).getTime() : 0;
+    if (expiresTime > 0 && now > expiresTime) {
+      // Mark as expired
+      invitation.status = InvitationStatus.EXPIRED;
+      await this.invitationRepository.save(invitation);
+      this.logger.warn(`getTenantInfoByCode: code ${code} expired. expiresAt=${invitation.expiresAt}, now=${new Date().toISOString()}`);
+      return null;
+    }
+
+    // Check max uses
+    if (invitation.maxUses > 0 && invitation.currentUses >= invitation.maxUses) {
+      this.logger.warn(`getTenantInfoByCode: code ${code} max uses reached (${invitation.currentUses}/${invitation.maxUses})`);
       return null;
     }
 
@@ -197,7 +258,7 @@ export class InvitationsService {
       if (result && result.length > 0) tenantName = result[0].name;
     } catch (e) {}
 
-    return { tenantId: invitation.tenantId, role: invitation.role, tenantName };
+    return { tenantId: invitation.tenantId, role: invitation.role, tenantName, expiresAt: invitation.expiresAt?.toISOString() };
   }
 
   // ════════════════════════════════════════════════════════════════════════════

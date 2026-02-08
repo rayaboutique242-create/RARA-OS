@@ -4,10 +4,11 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Role } from '../../common/constants/roles';
 
 /**
- * Roles allowed for self-registration.
- * Higher roles (PDG, MANAGER, GESTIONNAIRE) must be assigned by an admin.
+ * All roles allowed during registration (invitation-based registration
+ * can assign higher roles like MANAGER, GESTIONNAIRE).
+ * The actual role is enforced by the invitation system and PDG approval.
  */
-const SELF_REGISTER_ROLES = [Role.VENDEUR, Role.LIVREUR] as const;
+const ALLOWED_REGISTER_ROLES = [Role.PDG, Role.MANAGER, Role.GESTIONNAIRE, Role.VENDEUR, Role.LIVREUR] as const;
 
 export class RegisterDto {
     @ApiProperty({ example: 'user@example.com', description: 'Adresse email unique' })
@@ -42,11 +43,11 @@ export class RegisterDto {
 
     @ApiPropertyOptional({
         example: 'VENDEUR',
-        description: 'Role (auto-inscription limitee a VENDEUR ou LIVREUR)',
-        enum: SELF_REGISTER_ROLES,
+        description: 'Role assigne (tous les roles sont permis via invitation)',
+        enum: ALLOWED_REGISTER_ROLES,
     })
     @IsOptional()
-    @IsEnum([Role.VENDEUR, Role.LIVREUR], { message: 'L\'auto-inscription est limitee aux roles VENDEUR et LIVREUR' })
+    @IsEnum([Role.PDG, Role.MANAGER, Role.GESTIONNAIRE, Role.VENDEUR, Role.LIVREUR], { message: 'R\u00f4le invalide' })
     role?: Role;
 
     @ApiProperty({ example: 'tenant-001', description: 'Identifiant du tenant (entreprise)' })
