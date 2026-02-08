@@ -23,7 +23,7 @@ export const throttlerConfig: ThrottlerModuleOptions = [
  */
 export const authThrottleConfig = {
   ttl: 60 * 15, // 15 minutes
-  limit: 5, // Max 5 login attempts per 15 minutes (prevent brute force)
+  limit: 20, // Max 20 login attempts per 15 minutes
 };
 
 /**
