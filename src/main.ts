@@ -17,6 +17,7 @@ import {
 } from './common/security';
 import { PerformanceInterceptor } from './performance/interceptors/performance.interceptor';
 import { HttpCacheHeadersInterceptor } from './performance/interceptors/cache-headers.interceptor';
+import { TenantContextGuard } from './common/tenant.guard';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -51,6 +52,9 @@ async function bootstrap() {
     perfInterceptor,
     cacheHeadersInterceptor,
   );
+
+  // ==================== SECURITY: Tenant Isolation ====================
+  app.useGlobalGuards(new TenantContextGuard());
 
   // ==================== Validation ====================
   app.useGlobalPipes(
