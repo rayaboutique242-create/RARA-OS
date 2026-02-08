@@ -65,18 +65,45 @@ export class UserTenantsService {
   }
 
   /**
-   * Récupérer tous les tenants d'un utilisateur
+   * Récupérer tous les tenants d'un utilisateur (avec info tenant: name, tenantCode, etc.)
    */
-  async findUserTenants(userId: string, includeInactive: boolean = false): Promise<UserTenant[]> {
-    const where: any = { userId };
-    if (!includeInactive) {
-      where.status = MembershipStatus.ACTIVE;
-    }
+  async findUserTenants(userId: string, includeInactive: boolean = false): Promise<any[]> {
+    const statusFilter = includeInactive ? '' : `AND ut.status = 'ACTIVE'`;
 
-    return this.userTenantRepository.find({
-      where,
-      order: { isDefault: 'DESC', joinedAt: 'DESC' },
-    });
+    const results = await this.userTenantRepository.query(
+      `SELECT ut.*, t.name AS "tenantName", t."tenantCode" AS "tenantCode", t.status AS "tenantStatus",
+              t.currency, t."subscriptionPlan", t."businessType"
+       FROM user_tenants ut
+       LEFT JOIN tenants t ON CAST(ut.tenant_id AS INTEGER) = t.id
+       WHERE ut.user_id = $1 ${statusFilter}
+       ORDER BY ut.is_default DESC, ut.joined_at DESC`,
+      [userId],
+    );
+
+    // Normalize field names for frontend compatibility
+    return results.map((r: any) => ({
+      id: r.id,
+      userId: r.user_id,
+      tenantId: r.tenant_id,
+      role: r.role,
+      storeId: r.store_id,
+      status: r.status,
+      isDefault: r.is_default,
+      joinedVia: r.joined_via,
+      invitationId: r.invitation_id,
+      joinRequestId: r.join_request_id,
+      joinedAt: r.joined_at,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+      // Tenant info enrichment
+      name: r.tenantName,
+      tenantName: r.tenantName,
+      tenantCode: r.tenantCode,
+      tenantStatus: r.tenantStatus,
+      currency: r.currency,
+      subscriptionPlan: r.subscriptionPlan,
+      businessType: r.businessType,
+    }));
   }
 
   /**
