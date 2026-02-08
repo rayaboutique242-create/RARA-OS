@@ -10,7 +10,7 @@ import { Reflector } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { IS_PUBLIC_KEY } from '../../auth/decorators/public.decorator';
-import { SKIP_TENANT_CHECK_KEY } from '../decorators/skip-tenant-check.decorator';
+import { SKIP_TENANT_CHECK_KEY } from '../decorators/index';
 import { Tenant, TenantStatus } from '../../tenants/entities/tenant.entity';
 
 /**
