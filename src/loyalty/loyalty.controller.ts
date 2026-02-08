@@ -1,4 +1,4 @@
-// src/loyalty/loyalty.controller.ts
+﻿// src/loyalty/loyalty.controller.ts
 import {
   Controller,
   Get,
@@ -11,7 +11,6 @@ import {
   ParseIntPipe,
   UseGuards,
   Request,
-  Headers,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -22,6 +21,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentTenant } from '../common/decorators/current-tenant.decorator';
 import { LoyaltyService } from './loyalty.service';
 import {
   CreateProgramDto,
@@ -54,11 +54,11 @@ export class LoyaltyController {
   // ==================== PROGRAMMES ====================
 
   @Post('programs')
-  @ApiOperation({ summary: 'Créer un programme de fidélité' })
-  @ApiResponse({ status: 201, description: 'Programme créé' })
+  @ApiOperation({ summary: 'CrÃ©er un programme de fidÃ©litÃ©' })
+  @ApiResponse({ status: 201, description: 'Programme crÃ©Ã©' })
   createProgram(
     @Body() dto: CreateProgramDto,
-    @Headers('x-tenant-id') tenantId?: string,
+    @CurrentTenant() tenantId: string,
   ) {
     return this.loyaltyService.createProgram(dto, tenantId);
   }
@@ -66,21 +66,21 @@ export class LoyaltyController {
   @Get('programs')
   @ApiOperation({ summary: 'Liste des programmes' })
   @ApiResponse({ status: 200, description: 'Liste des programmes' })
-  findAllPrograms(@Headers('x-tenant-id') tenantId?: string) {
+  findAllPrograms(@CurrentTenant() tenantId: string) {
     return this.loyaltyService.findAllPrograms(tenantId);
   }
 
   @Get('programs/active')
   @ApiOperation({ summary: 'Programme actif' })
   @ApiResponse({ status: 200, description: 'Programme actif' })
-  findActiveProgram(@Headers('x-tenant-id') tenantId?: string) {
+  findActiveProgram(@CurrentTenant() tenantId: string) {
     return this.loyaltyService.findActiveProgram(tenantId);
   }
 
   @Get('programs/:id')
-  @ApiOperation({ summary: 'Détails d\'un programme' })
+  @ApiOperation({ summary: 'DÃ©tails d\'un programme' })
   @ApiParam({ name: 'id', description: 'ID du programme' })
-  @ApiResponse({ status: 200, description: 'Détails du programme' })
+  @ApiResponse({ status: 200, description: 'DÃ©tails du programme' })
   findProgramById(@Param('id', ParseIntPipe) id: number) {
     return this.loyaltyService.findProgramById(id);
   }
@@ -88,7 +88,7 @@ export class LoyaltyController {
   @Patch('programs/:id')
   @ApiOperation({ summary: 'Modifier un programme' })
   @ApiParam({ name: 'id', description: 'ID du programme' })
-  @ApiResponse({ status: 200, description: 'Programme modifié' })
+  @ApiResponse({ status: 200, description: 'Programme modifiÃ©' })
   updateProgram(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateProgramDto,
@@ -99,26 +99,26 @@ export class LoyaltyController {
   @Delete('programs/:id')
   @ApiOperation({ summary: 'Supprimer un programme' })
   @ApiParam({ name: 'id', description: 'ID du programme' })
-  @ApiResponse({ status: 200, description: 'Programme supprimé' })
+  @ApiResponse({ status: 200, description: 'Programme supprimÃ©' })
   deleteProgram(@Param('id', ParseIntPipe) id: number) {
     return this.loyaltyService.deleteProgram(id);
   }
 
   @Post('programs/initialize')
-  @ApiOperation({ summary: 'Initialiser le programme par défaut' })
-  @ApiResponse({ status: 201, description: 'Programme initialisé' })
-  initializeDefaultProgram(@Headers('x-tenant-id') tenantId?: string) {
+  @ApiOperation({ summary: 'Initialiser le programme par dÃ©faut' })
+  @ApiResponse({ status: 201, description: 'Programme initialisÃ©' })
+  initializeDefaultProgram(@CurrentTenant() tenantId: string) {
     return this.loyaltyService.initializeDefaultProgram(tenantId);
   }
 
   // ==================== NIVEAUX (TIERS) ====================
 
   @Post('tiers')
-  @ApiOperation({ summary: 'Créer un niveau de fidélité' })
-  @ApiResponse({ status: 201, description: 'Niveau créé' })
+  @ApiOperation({ summary: 'CrÃ©er un niveau de fidÃ©litÃ©' })
+  @ApiResponse({ status: 201, description: 'Niveau crÃ©Ã©' })
   createTier(
     @Body() dto: CreateTierDto,
-    @Headers('x-tenant-id') tenantId?: string,
+    @CurrentTenant() tenantId: string,
   ) {
     return this.loyaltyService.createTier(dto, tenantId);
   }
@@ -132,9 +132,9 @@ export class LoyaltyController {
   }
 
   @Get('tiers/:id')
-  @ApiOperation({ summary: 'Détails d\'un niveau' })
+  @ApiOperation({ summary: 'DÃ©tails d\'un niveau' })
   @ApiParam({ name: 'id', description: 'ID du niveau' })
-  @ApiResponse({ status: 200, description: 'Détails du niveau' })
+  @ApiResponse({ status: 200, description: 'DÃ©tails du niveau' })
   findTierById(@Param('id', ParseIntPipe) id: number) {
     return this.loyaltyService.findTierById(id);
   }
@@ -142,7 +142,7 @@ export class LoyaltyController {
   @Patch('tiers/:id')
   @ApiOperation({ summary: 'Modifier un niveau' })
   @ApiParam({ name: 'id', description: 'ID du niveau' })
-  @ApiResponse({ status: 200, description: 'Niveau modifié' })
+  @ApiResponse({ status: 200, description: 'Niveau modifiÃ©' })
   updateTier(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateTierDto,
@@ -153,45 +153,45 @@ export class LoyaltyController {
   @Delete('tiers/:id')
   @ApiOperation({ summary: 'Supprimer un niveau' })
   @ApiParam({ name: 'id', description: 'ID du niveau' })
-  @ApiResponse({ status: 200, description: 'Niveau supprimé' })
+  @ApiResponse({ status: 200, description: 'Niveau supprimÃ©' })
   deleteTier(@Param('id', ParseIntPipe) id: number) {
     return this.loyaltyService.deleteTier(id);
   }
 
-  // ==================== RÉCOMPENSES ====================
+  // ==================== RÃ‰COMPENSES ====================
 
   @Post('rewards')
-  @ApiOperation({ summary: 'Créer une récompense' })
-  @ApiResponse({ status: 201, description: 'Récompense créée' })
+  @ApiOperation({ summary: 'CrÃ©er une rÃ©compense' })
+  @ApiResponse({ status: 201, description: 'RÃ©compense crÃ©Ã©e' })
   createReward(
     @Body() dto: CreateRewardDto,
-    @Headers('x-tenant-id') tenantId?: string,
+    @CurrentTenant() tenantId: string,
   ) {
     return this.loyaltyService.createReward(dto, tenantId);
   }
 
   @Get('rewards')
-  @ApiOperation({ summary: 'Liste des récompenses' })
-  @ApiResponse({ status: 200, description: 'Liste des récompenses' })
+  @ApiOperation({ summary: 'Liste des rÃ©compenses' })
+  @ApiResponse({ status: 200, description: 'Liste des rÃ©compenses' })
   findAllRewards(
     @Query() query: QueryRewardsDto,
-    @Headers('x-tenant-id') tenantId?: string,
+    @CurrentTenant() tenantId: string,
   ) {
     return this.loyaltyService.findAllRewards(query, tenantId);
   }
 
   @Get('rewards/:id')
-  @ApiOperation({ summary: 'Détails d\'une récompense' })
-  @ApiParam({ name: 'id', description: 'ID de la récompense' })
-  @ApiResponse({ status: 200, description: 'Détails de la récompense' })
+  @ApiOperation({ summary: 'DÃ©tails d\'une rÃ©compense' })
+  @ApiParam({ name: 'id', description: 'ID de la rÃ©compense' })
+  @ApiResponse({ status: 200, description: 'DÃ©tails de la rÃ©compense' })
   findRewardById(@Param('id', ParseIntPipe) id: number) {
     return this.loyaltyService.findRewardById(id);
   }
 
   @Patch('rewards/:id')
-  @ApiOperation({ summary: 'Modifier une récompense' })
-  @ApiParam({ name: 'id', description: 'ID de la récompense' })
-  @ApiResponse({ status: 200, description: 'Récompense modifiée' })
+  @ApiOperation({ summary: 'Modifier une rÃ©compense' })
+  @ApiParam({ name: 'id', description: 'ID de la rÃ©compense' })
+  @ApiResponse({ status: 200, description: 'RÃ©compense modifiÃ©e' })
   updateReward(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateRewardDto,
@@ -200,66 +200,66 @@ export class LoyaltyController {
   }
 
   @Delete('rewards/:id')
-  @ApiOperation({ summary: 'Supprimer une récompense' })
-  @ApiParam({ name: 'id', description: 'ID de la récompense' })
-  @ApiResponse({ status: 200, description: 'Récompense supprimée' })
+  @ApiOperation({ summary: 'Supprimer une rÃ©compense' })
+  @ApiParam({ name: 'id', description: 'ID de la rÃ©compense' })
+  @ApiResponse({ status: 200, description: 'RÃ©compense supprimÃ©e' })
   deleteReward(@Param('id', ParseIntPipe) id: number) {
     return this.loyaltyService.deleteReward(id);
   }
 
-  // ==================== CLIENTS FIDÉLITÉ ====================
+  // ==================== CLIENTS FIDÃ‰LITÃ‰ ====================
 
   @Post('customers/enroll')
   @ApiOperation({ summary: 'Inscrire un client au programme' })
   @ApiResponse({ status: 201, description: 'Client inscrit' })
   enrollCustomer(
     @Body() dto: EnrollCustomerDto,
-    @Headers('x-tenant-id') tenantId?: string,
+    @CurrentTenant() tenantId: string,
     @Request() req?: any,
   ) {
     return this.loyaltyService.enrollCustomer(dto, tenantId, req?.user?.id);
   }
 
   @Get('customers')
-  @ApiOperation({ summary: 'Liste des clients fidélité' })
+  @ApiOperation({ summary: 'Liste des clients fidÃ©litÃ©' })
   @ApiResponse({ status: 200, description: 'Liste des clients' })
   findAllCustomersLoyalty(
     @Query() query: QueryCustomersLoyaltyDto,
-    @Headers('x-tenant-id') tenantId?: string,
+    @CurrentTenant() tenantId: string,
   ) {
     return this.loyaltyService.findAllCustomersLoyalty(query, tenantId);
   }
 
   @Get('customers/:customerId')
-  @ApiOperation({ summary: 'Profil fidélité d\'un client' })
+  @ApiOperation({ summary: 'Profil fidÃ©litÃ© d\'un client' })
   @ApiParam({ name: 'customerId', description: 'ID du client' })
-  @ApiResponse({ status: 200, description: 'Profil fidélité' })
+  @ApiResponse({ status: 200, description: 'Profil fidÃ©litÃ©' })
   findCustomerLoyalty(
     @Param('customerId', ParseIntPipe) customerId: number,
-    @Headers('x-tenant-id') tenantId?: string,
+    @CurrentTenant() tenantId: string,
   ) {
     return this.loyaltyService.findCustomerLoyalty(customerId, tenantId);
   }
 
   @Patch('customers/:customerId')
-  @ApiOperation({ summary: 'Modifier le profil fidélité' })
+  @ApiOperation({ summary: 'Modifier le profil fidÃ©litÃ©' })
   @ApiParam({ name: 'customerId', description: 'ID du client' })
-  @ApiResponse({ status: 200, description: 'Profil modifié' })
+  @ApiResponse({ status: 200, description: 'Profil modifiÃ©' })
   updateCustomerLoyalty(
     @Param('customerId', ParseIntPipe) customerId: number,
     @Body() dto: UpdateCustomerLoyaltyDto,
-    @Headers('x-tenant-id') tenantId?: string,
+    @CurrentTenant() tenantId: string,
   ) {
     return this.loyaltyService.updateCustomerLoyalty(customerId, dto, tenantId);
   }
 
   @Get('customers/:customerId/dashboard')
-  @ApiOperation({ summary: 'Tableau de bord fidélité du client' })
+  @ApiOperation({ summary: 'Tableau de bord fidÃ©litÃ© du client' })
   @ApiParam({ name: 'customerId', description: 'ID du client' })
   @ApiResponse({ status: 200, description: 'Dashboard client' })
   getCustomerDashboard(
     @Param('customerId', ParseIntPipe) customerId: number,
-    @Headers('x-tenant-id') tenantId?: string,
+    @CurrentTenant() tenantId: string,
   ) {
     return this.loyaltyService.getCustomerDashboard(customerId, tenantId);
   }
@@ -268,10 +268,10 @@ export class LoyaltyController {
 
   @Post('points/earn')
   @ApiOperation({ summary: 'Attribuer des points' })
-  @ApiResponse({ status: 201, description: 'Points attribués' })
+  @ApiResponse({ status: 201, description: 'Points attribuÃ©s' })
   earnPoints(
     @Body() dto: EarnPointsDto,
-    @Headers('x-tenant-id') tenantId?: string,
+    @CurrentTenant() tenantId: string,
     @Request() req?: any,
   ) {
     return this.loyaltyService.earnPoints(dto, tenantId, req?.user?.id);
@@ -279,21 +279,21 @@ export class LoyaltyController {
 
   @Post('points/adjust')
   @ApiOperation({ summary: 'Ajuster les points (+ ou -)' })
-  @ApiResponse({ status: 201, description: 'Points ajustés' })
+  @ApiResponse({ status: 201, description: 'Points ajustÃ©s' })
   adjustPoints(
     @Body() dto: AdjustPointsDto,
-    @Headers('x-tenant-id') tenantId?: string,
+    @CurrentTenant() tenantId: string,
     @Request() req?: any,
   ) {
     return this.loyaltyService.adjustPoints(dto, tenantId, req?.user?.id);
   }
 
   @Post('points/transfer')
-  @ApiOperation({ summary: 'Transférer des points entre clients' })
-  @ApiResponse({ status: 201, description: 'Points transférés' })
+  @ApiOperation({ summary: 'TransfÃ©rer des points entre clients' })
+  @ApiResponse({ status: 201, description: 'Points transfÃ©rÃ©s' })
   transferPoints(
     @Body() dto: TransferPointsDto,
-    @Headers('x-tenant-id') tenantId?: string,
+    @CurrentTenant() tenantId: string,
     @Request() req?: any,
   ) {
     return this.loyaltyService.transferPoints(dto, tenantId, req?.user?.id);
@@ -304,7 +304,7 @@ export class LoyaltyController {
   @ApiResponse({ status: 200, description: 'Historique des points' })
   findPointsHistory(
     @Query() query: QueryPointsDto,
-    @Headers('x-tenant-id') tenantId?: string,
+    @CurrentTenant() tenantId: string,
   ) {
     return this.loyaltyService.findPointsHistory(query, tenantId);
   }
@@ -315,7 +315,7 @@ export class LoyaltyController {
   @ApiResponse({ status: 200, description: 'Solde de points' })
   getPointsBalance(
     @Param('customerId', ParseIntPipe) customerId: number,
-    @Headers('x-tenant-id') tenantId?: string,
+    @CurrentTenant() tenantId: string,
   ) {
     return this.loyaltyService.getPointsBalance(customerId, tenantId);
   }
@@ -324,58 +324,58 @@ export class LoyaltyController {
   @ApiOperation({ summary: 'Calculer les points pour un achat' })
   @ApiQuery({ name: 'amount', description: 'Montant de l\'achat' })
   @ApiQuery({ name: 'customerId', description: 'ID du client' })
-  @ApiResponse({ status: 200, description: 'Points calculés' })
+  @ApiResponse({ status: 200, description: 'Points calculÃ©s' })
   calculatePointsForPurchase(
     @Query('amount') amount: number,
     @Query('customerId') customerId: number,
-    @Headers('x-tenant-id') tenantId?: string,
+    @CurrentTenant() tenantId: string,
   ) {
     return this.loyaltyService.calculatePointsForPurchase(+amount, +customerId, tenantId);
   }
 
-  // ==================== ÉCHANGES (REDEMPTIONS) ====================
+  // ==================== Ã‰CHANGES (REDEMPTIONS) ====================
 
   @Post('redeem')
-  @ApiOperation({ summary: 'Échanger des points contre une récompense' })
-  @ApiResponse({ status: 201, description: 'Échange créé' })
+  @ApiOperation({ summary: 'Ã‰changer des points contre une rÃ©compense' })
+  @ApiResponse({ status: 201, description: 'Ã‰change crÃ©Ã©' })
   redeemReward(
     @Body() dto: RedeemRewardDto,
-    @Headers('x-tenant-id') tenantId?: string,
+    @CurrentTenant() tenantId: string,
     @Request() req?: any,
   ) {
     return this.loyaltyService.redeemReward(dto, tenantId, req?.user?.id);
   }
 
   @Get('redemptions')
-  @ApiOperation({ summary: 'Liste des échanges' })
-  @ApiResponse({ status: 200, description: 'Liste des échanges' })
+  @ApiOperation({ summary: 'Liste des Ã©changes' })
+  @ApiResponse({ status: 200, description: 'Liste des Ã©changes' })
   findAllRedemptions(
     @Query() query: QueryRedemptionsDto,
-    @Headers('x-tenant-id') tenantId?: string,
+    @CurrentTenant() tenantId: string,
   ) {
     return this.loyaltyService.findAllRedemptions(query, tenantId);
   }
 
   @Get('redemptions/:id')
-  @ApiOperation({ summary: 'Détails d\'un échange' })
-  @ApiParam({ name: 'id', description: 'ID de l\'échange' })
-  @ApiResponse({ status: 200, description: 'Détails de l\'échange' })
+  @ApiOperation({ summary: 'DÃ©tails d\'un Ã©change' })
+  @ApiParam({ name: 'id', description: 'ID de l\'Ã©change' })
+  @ApiResponse({ status: 200, description: 'DÃ©tails de l\'Ã©change' })
   findRedemptionById(@Param('id', ParseIntPipe) id: number) {
     return this.loyaltyService.findRedemptionById(id);
   }
 
   @Get('redemptions/code/:code')
-  @ApiOperation({ summary: 'Trouver un échange par code' })
-  @ApiParam({ name: 'code', description: 'Code de l\'échange ou voucher' })
-  @ApiResponse({ status: 200, description: 'Détails de l\'échange' })
+  @ApiOperation({ summary: 'Trouver un Ã©change par code' })
+  @ApiParam({ name: 'code', description: 'Code de l\'Ã©change ou voucher' })
+  @ApiResponse({ status: 200, description: 'DÃ©tails de l\'Ã©change' })
   findRedemptionByCode(@Param('code') code: string) {
     return this.loyaltyService.findRedemptionByCode(code);
   }
 
   @Patch('redemptions/:id/use')
-  @ApiOperation({ summary: 'Utiliser un échange sur une commande' })
-  @ApiParam({ name: 'id', description: 'ID de l\'échange' })
-  @ApiResponse({ status: 200, description: 'Échange utilisé' })
+  @ApiOperation({ summary: 'Utiliser un Ã©change sur une commande' })
+  @ApiParam({ name: 'id', description: 'ID de l\'Ã©change' })
+  @ApiResponse({ status: 200, description: 'Ã‰change utilisÃ©' })
   useRedemption(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UseRedemptionDto,
@@ -385,9 +385,9 @@ export class LoyaltyController {
   }
 
   @Patch('redemptions/:id/cancel')
-  @ApiOperation({ summary: 'Annuler un échange' })
-  @ApiParam({ name: 'id', description: 'ID de l\'échange' })
-  @ApiResponse({ status: 200, description: 'Échange annulé' })
+  @ApiOperation({ summary: 'Annuler un Ã©change' })
+  @ApiParam({ name: 'id', description: 'ID de l\'Ã©change' })
+  @ApiResponse({ status: 200, description: 'Ã‰change annulÃ©' })
   cancelRedemption(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CancelRedemptionDto,
@@ -399,12 +399,12 @@ export class LoyaltyController {
   // ==================== BONUS ====================
 
   @Post('bonus/birthday/:customerId')
-  @ApiOperation({ summary: 'Réclamer le bonus anniversaire' })
+  @ApiOperation({ summary: 'RÃ©clamer le bonus anniversaire' })
   @ApiParam({ name: 'customerId', description: 'ID du client' })
-  @ApiResponse({ status: 201, description: 'Bonus attribué' })
+  @ApiResponse({ status: 201, description: 'Bonus attribuÃ©' })
   claimBirthdayBonus(
     @Param('customerId', ParseIntPipe) customerId: number,
-    @Headers('x-tenant-id') tenantId?: string,
+    @CurrentTenant() tenantId: string,
     @Request() req?: any,
   ) {
     return this.loyaltyService.claimBirthdayBonus(customerId, tenantId, req?.user?.id);
@@ -414,17 +414,17 @@ export class LoyaltyController {
 
   @Post('maintenance/expire-points')
   @ApiOperation({ summary: 'Traiter l\'expiration des points' })
-  @ApiResponse({ status: 200, description: 'Points expirés traités' })
-  processPointsExpiration(@Headers('x-tenant-id') tenantId?: string) {
+  @ApiResponse({ status: 200, description: 'Points expirÃ©s traitÃ©s' })
+  processPointsExpiration(@CurrentTenant() tenantId: string) {
     return this.loyaltyService.processPointsExpiration(tenantId);
   }
 
   // ==================== DASHBOARD ====================
 
   @Get('dashboard')
-  @ApiOperation({ summary: 'Tableau de bord fidélité global' })
+  @ApiOperation({ summary: 'Tableau de bord fidÃ©litÃ© global' })
   @ApiResponse({ status: 200, description: 'Statistiques du programme' })
-  getDashboard(@Headers('x-tenant-id') tenantId?: string) {
+  getDashboard(@CurrentTenant() tenantId: string) {
     return this.loyaltyService.getDashboard(tenantId);
   }
 }

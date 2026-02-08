@@ -17,6 +17,8 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from '@ne
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { Public } from '../auth/decorators/public.decorator';
+import { SkipTenantCheck } from '../common/decorators/skip-tenant-check.decorator';
 
 import { LoggerService } from './services/logger.service';
 import { SentryService } from './services/sentry.service';
@@ -46,6 +48,7 @@ class CreateAlertRuleDto {
 
 @ApiTags('Monitoring')
 @Controller('monitoring')
+@SkipTenantCheck()
 export class MonitoringController {
   constructor(
     private loggerService: LoggerService,
@@ -57,6 +60,7 @@ export class MonitoringController {
   // ==================== PUBLIC ENDPOINTS ====================
 
   @Get('health')
+  @Public()
   @ApiOperation({ summary: 'Health check with monitoring status' })
   @ApiResponse({ status: 200, description: 'Service is healthy' })
   getHealth() {
@@ -80,6 +84,7 @@ export class MonitoringController {
   }
 
   @Get('metrics')
+  @Public()
   @Header('Content-Type', 'text/plain')
   @ApiOperation({ summary: 'Prometheus metrics endpoint' })
   @ApiResponse({ status: 200, description: 'Prometheus format metrics' })

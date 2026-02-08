@@ -18,6 +18,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@ne
 import { TenantsService } from './tenants.service';import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { SkipTenantCheck } from '../common/decorators/skip-tenant-check.decorator';
 import { UserTenantsService } from '../user-tenants/user-tenants.service';
 import { JoinedVia } from '../user-tenants/entities/user-tenant.entity';import {
   CreateTenantDto,
@@ -31,6 +32,7 @@ import { JoinedVia } from '../user-tenants/entities/user-tenant.entity';import {
 @ApiTags('Tenants - Multi-Boutiques')
 @ApiBearerAuth()
 @Controller('tenants')
+@SkipTenantCheck()
 export class TenantsController {
   constructor(
     private readonly tenantsService: TenantsService,

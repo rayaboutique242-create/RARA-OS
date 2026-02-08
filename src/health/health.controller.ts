@@ -13,9 +13,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Public } from '../auth/decorators/public.decorator';
+import { SkipTenantCheck } from '../common/decorators/skip-tenant-check.decorator';
 
 @ApiTags('Health & Robustness')
 @Controller('health')
+@SkipTenantCheck()
 export class HealthController {
   constructor(
     private health: HealthCheckService,

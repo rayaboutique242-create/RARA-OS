@@ -349,7 +349,7 @@ export class AnalyticsService {
     const { start, end } = this.getDateRange(query.dateRange, query.startDate, query.endDate);
     const limit = query.limit || 10;
 
-    const result = await this.orderRepository.createQueryBuilder('order')
+    const qb = this.orderRepository.createQueryBuilder('order')
       .leftJoin('order.items', 'item')
       .select('item.productId', 'productId')
       .addSelect('item.productName', 'productName')
@@ -357,7 +357,11 @@ export class AnalyticsService {
       .addSelect('SUM(item.lineTotal)', 'totalRevenue')
       .addSelect('COUNT(DISTINCT order.id)', 'orderCount')
       .where('order.createdAt BETWEEN :start AND :end', { start, end })
-      .andWhere('order.status NOT IN (:...excludedStatuses)', { excludedStatuses: [OrderStatus.CANCELLED] })
+      .andWhere('order.status NOT IN (:...excludedStatuses)', { excludedStatuses: [OrderStatus.CANCELLED] });
+    if (tenantId) {
+      qb.andWhere('order.tenantId = :tenantId', { tenantId });
+    }
+    const result = await qb
       .groupBy('item.productId')
       .addGroupBy('item.productName')
       .orderBy(query.sortBy === 'quantity' ? 'totalQuantity' : 'totalRevenue', 'DESC')
@@ -381,14 +385,18 @@ export class AnalyticsService {
     const { start, end } = this.getDateRange(query.dateRange, query.startDate, query.endDate);
     const limit = query.limit || 10;
 
-    const result = await this.orderRepository.createQueryBuilder('order')
+    const catQb = this.orderRepository.createQueryBuilder('order')
       .leftJoin('order.items', 'item')
       .select('item.productId', 'categoryId')
       .addSelect('SUM(item.quantity)', 'totalQuantity')
       .addSelect('SUM(item.lineTotal)', 'totalRevenue')
       .addSelect('COUNT(DISTINCT order.id)', 'orderCount')
       .where('order.createdAt BETWEEN :start AND :end', { start, end })
-      .andWhere('order.status NOT IN (:...excludedStatuses)', { excludedStatuses: [OrderStatus.CANCELLED] })
+      .andWhere('order.status NOT IN (:...excludedStatuses)', { excludedStatuses: [OrderStatus.CANCELLED] });
+    if (tenantId) {
+      catQb.andWhere('order.tenantId = :tenantId', { tenantId });
+    }
+    const result = await catQb
       .groupBy('item.productId')
       .orderBy('totalRevenue', 'DESC')
       .limit(limit)
@@ -411,7 +419,7 @@ export class AnalyticsService {
     const { start, end } = this.getDateRange(query.dateRange, query.startDate, query.endDate);
     const limit = query.limit || 10;
 
-    const result = await this.orderRepository.createQueryBuilder('order')
+    const custQb = this.orderRepository.createQueryBuilder('order')
       .select('order.customerName', 'customerName')
       .addSelect('order.customerEmail', 'customerEmail')
       .addSelect('order.customerPhone', 'customerPhone')
@@ -420,7 +428,11 @@ export class AnalyticsService {
       .addSelect('AVG(order.total)', 'avgOrderValue')
       .where('order.createdAt BETWEEN :start AND :end', { start, end })
       .andWhere('order.status NOT IN (:...excludedStatuses)', { excludedStatuses: [OrderStatus.CANCELLED] })
-      .andWhere('order.customerName IS NOT NULL')
+      .andWhere('order.customerName IS NOT NULL');
+    if (tenantId) {
+      custQb.andWhere('order.tenantId = :tenantId', { tenantId });
+    }
+    const result = await custQb
       .groupBy('order.customerName')
       .addGroupBy('order.customerEmail')
       .addGroupBy('order.customerPhone')
@@ -523,28 +535,39 @@ export class AnalyticsService {
     }
     const totalCustomers = await totalCustomersQuery.getCount();
 
-    const activeCustomersResult = await this.orderRepository.createQueryBuilder('order')
+    const activeQb = this.orderRepository.createQueryBuilder('order')
       .select('COUNT(DISTINCT order.customerName)', 'count')
       .where('order.createdAt BETWEEN :start AND :end', { start, end })
-      .andWhere('order.customerName IS NOT NULL')
-      .getRawOne();
+      .andWhere('order.customerName IS NOT NULL');
+    if (tenantId) {
+      activeQb.andWhere('order.tenantId = :tenantId', { tenantId });
+    }
+    const activeCustomersResult = await activeQb.getRawOne();
     const activeCustomers = Number(activeCustomersResult?.count || 0);
 
-    const repeatCustomersResult = await this.orderRepository.createQueryBuilder('order')
+    const repeatQb = this.orderRepository.createQueryBuilder('order')
       .select('order.customerName')
       .addSelect('COUNT(order.id)', 'orderCount')
       .where('order.createdAt BETWEEN :start AND :end', { start, end })
-      .andWhere('order.customerName IS NOT NULL')
+      .andWhere('order.customerName IS NOT NULL');
+    if (tenantId) {
+      repeatQb.andWhere('order.tenantId = :tenantId', { tenantId });
+    }
+    const repeatCustomersResult = await repeatQb
       .groupBy('order.customerName')
       .having('COUNT(order.id) > 1')
       .getRawMany();
     const repeatCustomers = repeatCustomersResult.length;
 
-    const segmentation = await this.orderRepository.createQueryBuilder('order')
+    const segQb = this.orderRepository.createQueryBuilder('order')
       .select('order.customerName')
       .addSelect('SUM(order.total)', 'totalSpent')
       .where('order.createdAt BETWEEN :start AND :end', { start, end })
-      .andWhere('order.customerName IS NOT NULL')
+      .andWhere('order.customerName IS NOT NULL');
+    if (tenantId) {
+      segQb.andWhere('order.tenantId = :tenantId', { tenantId });
+    }
+    const segmentation = await segQb
       .groupBy('order.customerName')
       .getRawMany();
 
@@ -639,9 +662,13 @@ export class AnalyticsService {
     const { start, end } = this.getDateRange(query.dateRange, query.startDate, query.endDate);
     const groupBy = query.groupBy || GroupBy.DAY;
 
-    const orders = await this.orderRepository.createQueryBuilder('order')
+    const trendQb = this.orderRepository.createQueryBuilder('order')
       .leftJoinAndSelect('order.items', 'items')
-      .where('order.createdAt BETWEEN :start AND :end', { start, end })
+      .where('order.createdAt BETWEEN :start AND :end', { start, end });
+    if (tenantId) {
+      trendQb.andWhere('order.tenantId = :tenantId', { tenantId });
+    }
+    const orders = await trendQb
       .orderBy('order.createdAt', 'ASC')
       .getMany();
 
@@ -689,11 +716,14 @@ export class AnalyticsService {
     const historicalStart = new Date();
     historicalStart.setDate(historicalStart.getDate() - 90);
     
-    const orders = await this.orderRepository.createQueryBuilder('order')
+    const forecastQb = this.orderRepository.createQueryBuilder('order')
       .leftJoinAndSelect('order.items', 'items')
       .where('order.createdAt >= :start', { start: historicalStart })
-      .andWhere('order.status NOT IN (:...excludedStatuses)', { excludedStatuses: [OrderStatus.CANCELLED] })
-      .getMany();
+      .andWhere('order.status NOT IN (:...excludedStatuses)', { excludedStatuses: [OrderStatus.CANCELLED] });
+    if (tenantId) {
+      forecastQb.andWhere('order.tenantId = :tenantId', { tenantId });
+    }
+    const orders = await forecastQb.getMany();
 
     const dailyData = this.groupOrdersByTime(orders, GroupBy.DAY);
 

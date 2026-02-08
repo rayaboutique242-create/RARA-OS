@@ -34,6 +34,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { GithubAuthGuard } from './guards/github-auth.guard';
 import { Public } from './decorators/public.decorator';
+import { SkipTenantCheck } from '../common/decorators/skip-tenant-check.decorator';
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 
@@ -166,6 +167,7 @@ export class AuthController {
   // ==================== PROFILE ====================
 
   @Get('me')
+  @SkipTenantCheck()
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Profil utilisateur',
@@ -198,8 +200,7 @@ export class AuthController {
 
   // ==================== LOGOUT ====================
 
-  @Post('logout')
-  @HttpCode(HttpStatus.OK)
+  @Post('logout')  @SkipTenantCheck()  @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Déconnexion',
@@ -211,8 +212,7 @@ export class AuthController {
     return this.authService.logout(req.user.id, sessionId);
   }
 
-  @Post('logout-all')
-  @HttpCode(HttpStatus.OK)
+  @Post('logout-all')  @SkipTenantCheck()  @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Déconnexion de tous les appareils',
@@ -251,8 +251,7 @@ export class AuthController {
     return this.authService.resetPassword(dto.token, dto.newPassword);
   }
 
-  @Post('change-password')
-  @HttpCode(HttpStatus.OK)
+  @Post('change-password')  @SkipTenantCheck()  @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Changer le mot de passe (utilisateur connecté)',
@@ -267,6 +266,7 @@ export class AuthController {
   // ==================== SESSIONS ====================
 
   @Get('sessions')
+  @SkipTenantCheck()
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Lister les sessions actives',
@@ -278,6 +278,7 @@ export class AuthController {
   }
 
   @Delete('sessions/:sessionId')
+  @SkipTenantCheck()
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Révoquer une session spécifique',
@@ -290,6 +291,7 @@ export class AuthController {
   }
 
   @Post('sessions/revoke-others')
+  @SkipTenantCheck()
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({

@@ -17,6 +17,7 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { SkipTenantCheck } from '../common/decorators/skip-tenant-check.decorator';
 import { AdminService } from './admin.service';
 import {
   AdminDashboardQueryDto,
@@ -29,6 +30,7 @@ import {
 @ApiBearerAuth('JWT-auth')
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@SkipTenantCheck()
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 

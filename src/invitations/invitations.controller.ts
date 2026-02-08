@@ -18,6 +18,7 @@ import { InvitationsService } from './invitations.service';
 import { CreateInvitationDto, JoinByCodeDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Public } from '../auth/decorators/public.decorator';
+import { SkipTenantCheck } from '../common/decorators/skip-tenant-check.decorator';
 
 @ApiTags('Invitations - Gestion des Adhesions')
 @Controller('invitations')
@@ -125,6 +126,7 @@ export class InvitationsController {
   // ==================== JOIN REQUESTS ENDPOINTS ====================
 
   @Post('join-requests')
+  @SkipTenantCheck()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Creer une demande d adhesion a un tenant' })
@@ -157,6 +159,7 @@ export class InvitationsController {
   }
 
   @Get('join-requests/my')
+  @SkipTenantCheck()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Mes demandes d adhesion' })

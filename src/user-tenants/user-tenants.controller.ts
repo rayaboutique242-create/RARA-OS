@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { SkipTenantCheck } from '../common/decorators/skip-tenant-check.decorator';
 import { UserTenantsService } from './user-tenants.service';
 
 @ApiTags('User Tenants - Memberships')
@@ -29,6 +30,7 @@ export class UserTenantsController {
   // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 
   @Get('my-tenants')
+  @SkipTenantCheck()
   @ApiOperation({ summary: 'Liste des entreprises auxquelles je suis membre' })
   @ApiResponse({ status: 200, description: 'Liste des memberships' })
   async getMyTenants(@Request() req, @Query('includeInactive') includeInactive?: string) {
@@ -37,6 +39,7 @@ export class UserTenantsController {
   }
 
   @Get('my-tenants/default')
+  @SkipTenantCheck()
   @ApiOperation({ summary: 'Obtenir mon entreprise par dÃƒÂ©faut' })
   @ApiResponse({ status: 200, description: 'Tenant par dÃƒÂ©faut' })
   async getMyDefaultTenant(@Request() req) {
@@ -45,6 +48,7 @@ export class UserTenantsController {
   }
 
   @Patch('my-tenants/:tenantId/set-default')
+  @SkipTenantCheck()
   @ApiOperation({ summary: 'DÃƒÂ©finir une entreprise comme mon dÃƒÂ©faut' })
   @ApiParam({ name: 'tenantId', description: 'ID du tenant' })
   @ApiResponse({ status: 200, description: 'DÃƒÂ©faut mis ÃƒÂ  jour' })
@@ -54,6 +58,7 @@ export class UserTenantsController {
   }
 
   @Delete('my-tenants/:tenantId/leave')
+  @SkipTenantCheck()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Quitter une entreprise' })
   @ApiParam({ name: 'tenantId', description: 'ID du tenant' })
@@ -188,8 +193,7 @@ export class UserTenantsController {
   }
 
   // ADMIN - Create membership (for testing/migration)
-  @Post('admin/create-membership')
-  @ApiOperation({ summary: 'Créer une membership (admin)' })
+  @Post('admin/create-membership')  @SkipTenantCheck()  @ApiOperation({ summary: 'Créer une membership (admin)' })
   @ApiResponse({ status: 201, description: 'Membership créée' })
   async createMembership(
     @Body() body: { userId: string; tenantId: string; role?: string; isDefault?: boolean },

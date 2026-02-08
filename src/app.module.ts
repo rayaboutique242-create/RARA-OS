@@ -1,11 +1,16 @@
 ﻿// src/app.module.ts
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+// Global Guards
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { RolesGuard } from './common/guards/roles.guard';
+import { TenantGuard } from './common/guards/tenant.guard';
 // Cache & Performance
 import { CacheConfigModule } from './cache/cache.module';
 import { CommonModule } from './common/common.module';
@@ -294,6 +299,13 @@ import { InitialSchema1738800000000 } from './database/migrations/1738800000000-
     SupportModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    // Global guards — applied to ALL routes (use @Public / @SkipTenantCheck to exempt)
+    // Order matters: JWT first → Roles → Tenant
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: TenantGuard },
+  ],
 })
 export class AppModule {}

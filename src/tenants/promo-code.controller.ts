@@ -24,6 +24,7 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 import { PromoCodeService } from './promo-code.service';
 import {
   CreatePromoCodeDto,
@@ -40,6 +41,7 @@ export class PromoCodeController {
 
   // ==================== UTILISATEUR: VÉRIFIER UN CODE ====================
   @Get('verify/:code')
+  @Public()
   @ApiOperation({ summary: 'Vérifier la validité d\'un code promo (public)' })
   @ApiParam({ name: 'code', description: 'Code promo à vérifier' })
   @ApiResponse({ status: 200, description: 'Résultat de la vérification' })
