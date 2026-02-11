@@ -10,6 +10,7 @@ import { CreateReturnDto, UpdateReturnStatusDto, ProcessRefundDto, InspectItemDt
 import { CreateStoreCreditDto, UseStoreCreditDto, StoreCreditQueryDto } from './dto/store-credit.dto';
 import { CreateReturnPolicyDto, UpdateReturnPolicyDto } from './dto/return-policy.dto';
 import { requireTenantId } from '../common/tenant.guard';
+import { getScopedStoreId } from '../common/utils/store-scope';
 
 @Injectable()
 export class ReturnsService {
@@ -28,6 +29,7 @@ export class ReturnsService {
 
   async createReturn(dto: CreateReturnDto, user: any): Promise<ReturnRequest> {
     const tid = requireTenantId(user.tenantId);
+    const storeId = getScopedStoreId(user);
     const returnNumber = await this.generateReturnNumber();
 
     // Calculate totals
@@ -71,6 +73,7 @@ export class ReturnsService {
       requestedAt: new Date(),
       photos: dto.photos ? JSON.stringify(dto.photos) : null,
       tenantId: tid,
+      storeId: storeId || null,
     });
 
     const savedReturn = await this.returnRequestRepo.save(returnRequest);
@@ -102,9 +105,10 @@ export class ReturnsService {
     return `${prefix}${String(sequence).padStart(4, '0')}`;
   }
 
-  async getReturns(query: ReturnQueryDto, tenantId: string | null): Promise<any> {
+  async getReturns(query: ReturnQueryDto, tenantId: string | null, storeId?: string): Promise<any> {
     const tid = requireTenantId(tenantId);
     const whereClause: any = { tenantId: tid };
+    if (storeId) whereClause.storeId = storeId;
     if (query.status) whereClause.status = query.status;
     if (query.type) whereClause.type = query.type;
     if (query.customerId) whereClause.customerId = query.customerId;
@@ -133,9 +137,9 @@ export class ReturnsService {
     };
   }
 
-  async getReturnById(id: number): Promise<ReturnRequest> {
+  async getReturnById(id: number, storeId?: string): Promise<ReturnRequest> {
     const returnRequest = await this.returnRequestRepo.findOne({
-      where: { id },
+      where: storeId ? { id, storeId } : { id },
       relations: ['items'],
     });
 
@@ -146,9 +150,9 @@ export class ReturnsService {
     return returnRequest;
   }
 
-  async getReturnByNumber(returnNumber: string): Promise<ReturnRequest> {
+  async getReturnByNumber(returnNumber: string, storeId?: string): Promise<ReturnRequest> {
     const returnRequest = await this.returnRequestRepo.findOne({
-      where: { returnNumber },
+      where: storeId ? { returnNumber, storeId } : { returnNumber },
       relations: ['items'],
     });
 
@@ -160,7 +164,8 @@ export class ReturnsService {
   }
 
   async updateReturnStatus(id: number, dto: UpdateReturnStatusDto, user: any): Promise<ReturnRequest> {
-    const returnRequest = await this.getReturnById(id);
+    const storeId = getScopedStoreId(user);
+    const returnRequest = await this.getReturnById(id, storeId);
     const newStatus = dto.status as ReturnStatus;
 
     // Validate status transition
@@ -213,7 +218,8 @@ export class ReturnsService {
   }
 
   async rejectReturn(id: number, reason: string, user: any): Promise<ReturnRequest> {
-    const returnRequest = await this.getReturnById(id);
+    const storeId = getScopedStoreId(user);
+    const returnRequest = await this.getReturnById(id, storeId);
     returnRequest.status = ReturnStatus.REJECTED;
     returnRequest.adminNotes = reason;
     return this.returnRequestRepo.save(returnRequest);
@@ -244,7 +250,8 @@ export class ReturnsService {
   }
 
   async processRefund(id: number, dto: ProcessRefundDto, user: any): Promise<ReturnRequest> {
-    const returnRequest = await this.getReturnById(id);
+    const storeId = getScopedStoreId(user);
+    const returnRequest = await this.getReturnById(id, storeId);
 
     if (returnRequest.status !== ReturnStatus.PROCESSING) {
       throw new BadRequestException('Le retour doit Ãªtre en cours de traitement pour effectuer un remboursement');
@@ -276,7 +283,8 @@ export class ReturnsService {
     return this.returnRequestRepo.save(returnRequest);
   }
 
-  async restockItems(returnId: number): Promise<ReturnItem[]> {
+  async restockItems(returnId: number, storeId?: string): Promise<ReturnItem[]> {
+    await this.getReturnById(returnId, storeId);
     const items = await this.returnItemRepo.find({
       where: { returnRequestId: returnId, decision: ItemDecision.RESTOCK, isRestocked: false },
     });
@@ -291,8 +299,8 @@ export class ReturnsService {
     return items;
   }
 
-  async addTrackingInfo(id: number, trackingNumber: string, carrier: string): Promise<ReturnRequest> {
-    const returnRequest = await this.getReturnById(id);
+  async addTrackingInfo(id: number, trackingNumber: string, carrier: string, storeId?: string): Promise<ReturnRequest> {
+    const returnRequest = await this.getReturnById(id, storeId);
     returnRequest.trackingNumber = trackingNumber;
     returnRequest.carrier = carrier;
     return this.returnRequestRepo.save(returnRequest);
@@ -301,6 +309,7 @@ export class ReturnsService {
   // ============ STORE CREDITS ============
 
   async createStoreCredit(dto: CreateStoreCreditDto, user: any): Promise<StoreCredit> {
+    const storeId = getScopedStoreId(user);
     const creditCode = await this.generateCreditCode();
 
     let expiresAt: Date | null = null;
@@ -315,9 +324,7 @@ export class ReturnsService {
     // Get return number if from a return
     let returnNumber: string | null = null;
     if (dto.returnRequestId) {
-      const returnRequest = await this.returnRequestRepo.findOne({
-        where: { id: dto.returnRequestId },
-      });
+      const returnRequest = await this.getReturnById(dto.returnRequestId, storeId);
       if (returnRequest) {
         returnNumber = returnRequest.returnNumber;
       }
@@ -339,6 +346,7 @@ export class ReturnsService {
       issuedById: user.id,
       issuedByName: user.email || `User ${user.id}`,
       tenantId: requireTenantId(user.tenantId),
+      storeId: storeId || null,
     });
 
     return this.storeCreditRepo.save(storeCredit);
@@ -361,9 +369,10 @@ export class ReturnsService {
     return code!;
   }
 
-  async getStoreCredits(query: StoreCreditQueryDto, tenantId: string | null): Promise<any> {
+  async getStoreCredits(query: StoreCreditQueryDto, tenantId: string | null, storeId?: string): Promise<any> {
     const whereClause: any = {};
     if (tenantId) whereClause.tenantId = tenantId;
+    if (storeId) whereClause.storeId = storeId;
     if (query.customerId) whereClause.customerId = query.customerId;
     if (query.status) whereClause.status = query.status;
     if (query.creditCode) whereClause.creditCode = query.creditCode;
@@ -386,17 +395,20 @@ export class ReturnsService {
     };
   }
 
-  async getStoreCreditByCode(creditCode: string): Promise<StoreCredit> {
-    const credit = await this.storeCreditRepo.findOne({ where: { creditCode } });
+  async getStoreCreditByCode(creditCode: string, storeId?: string): Promise<StoreCredit> {
+    const credit = await this.storeCreditRepo.findOne({
+      where: storeId ? { creditCode, storeId } : { creditCode },
+    });
     if (!credit) {
       throw new NotFoundException('Avoir non trouvÃ©');
     }
     return credit;
   }
 
-  async getCustomerCredits(customerId: number, tenantId: string | null): Promise<StoreCredit[]> {
+  async getCustomerCredits(customerId: number, tenantId: string | null, storeId?: string): Promise<StoreCredit[]> {
     const whereClause: any = { customerId, status: CreditStatus.ACTIVE };
     if (tenantId) whereClause.tenantId = tenantId;
+    if (storeId) whereClause.storeId = storeId;
 
     return this.storeCreditRepo.find({
       where: whereClause,
@@ -404,8 +416,8 @@ export class ReturnsService {
     });
   }
 
-  async useStoreCredit(dto: UseStoreCreditDto): Promise<StoreCredit> {
-    const credit = await this.getStoreCreditByCode(dto.creditCode);
+  async useStoreCredit(dto: UseStoreCreditDto, storeId?: string): Promise<StoreCredit> {
+    const credit = await this.getStoreCreditByCode(dto.creditCode, storeId);
 
     if (credit.status === CreditStatus.FULLY_USED) {
       throw new BadRequestException('Cet avoir a dÃ©jÃ  Ã©tÃ© entiÃ¨rement utilisÃ©');
@@ -433,8 +445,10 @@ export class ReturnsService {
     return this.storeCreditRepo.save(credit);
   }
 
-  async cancelStoreCredit(id: number, reason: string): Promise<StoreCredit> {
-    const credit = await this.storeCreditRepo.findOne({ where: { id } });
+  async cancelStoreCredit(id: number, reason: string, storeId?: string): Promise<StoreCredit> {
+    const credit = await this.storeCreditRepo.findOne({
+      where: storeId ? { id, storeId } : { id },
+    });
     if (!credit) {
       throw new NotFoundException('Avoir non trouvÃ©');
     }
@@ -548,9 +562,10 @@ export class ReturnsService {
 
   // ============ STATISTICS ============
 
-  async getStatistics(tenantId: string | null): Promise<any> {
+  async getStatistics(tenantId: string | null, storeId?: string): Promise<any> {
     const whereClause: any = {};
     if (tenantId) whereClause.tenantId = tenantId;
+    if (storeId) whereClause.storeId = storeId;
 
     const totalReturns = await this.returnRequestRepo.count({ where: whereClause });
     
@@ -572,6 +587,7 @@ export class ReturnsService {
       .select('r.type', 'type')
       .addSelect('COUNT(*)', 'count')
       .where(tenantId ? 'r.tenantId = :tenantId' : '1=1', { tenantId })
+      .andWhere(storeId ? 'r.storeId = :storeId' : '1=1', { storeId })
       .groupBy('r.type')
       .getRawMany();
 
@@ -581,6 +597,7 @@ export class ReturnsService {
       .select('r.reason', 'reason')
       .addSelect('COUNT(*)', 'count')
       .where(tenantId ? 'r.tenantId = :tenantId' : '1=1', { tenantId })
+      .andWhere(storeId ? 'r.storeId = :storeId' : '1=1', { storeId })
       .groupBy('r.reason')
       .getRawMany();
 
@@ -590,6 +607,7 @@ export class ReturnsService {
       .select('SUM(r.refundAmount)', 'totalRefunded')
       .addSelect('AVG(r.refundAmount)', 'avgRefund')
       .where(tenantId ? 'r.tenantId = :tenantId' : '1=1', { tenantId })
+      .andWhere(storeId ? 'r.storeId = :storeId' : '1=1', { storeId })
       .andWhere('r.status = :status', { status: ReturnStatus.COMPLETED })
       .getRawOne();
 

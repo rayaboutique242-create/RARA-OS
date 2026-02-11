@@ -30,6 +30,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { CurrentTenant } from '../common/decorators/current-tenant.decorator';
 import { Role } from '../common/constants/roles';
+import { getScopedStoreId } from '../common/utils/store-scope';
 
 @ApiTags('Deliveries')
 @ApiBearerAuth('JWT-auth')
@@ -50,9 +51,10 @@ export class DeliveriesController {
   create(
     @Body() createDeliveryDto: CreateDeliveryDto,
     @CurrentTenant() tenantId: string,
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: { id: string; role?: string; storeId?: string },
   ) {
-    return this.deliveriesService.create(createDeliveryDto, tenantId, userId);
+    const storeId = getScopedStoreId(user);
+    return this.deliveriesService.create(createDeliveryDto, tenantId, user.id, storeId);
   }
 
   @Get()
@@ -61,8 +63,13 @@ export class DeliveriesController {
     description: 'Récupère les livraisons avec filtres et pagination',
   })
   @ApiResponse({ status: 200, description: 'Liste des livraisons' })
-  findAll(@CurrentTenant() tenantId: string, @Query() query: QueryDeliveryDto) {
-    return this.deliveriesService.findAll(tenantId, query);
+  findAll(
+    @CurrentTenant() tenantId: string,
+    @Query() query: QueryDeliveryDto,
+    @CurrentUser() user: { role?: string; storeId?: string },
+  ) {
+    const storeId = getScopedStoreId(user);
+    return this.deliveriesService.findAll(tenantId, query, storeId);
   }
 
   @Get('stats')
@@ -78,8 +85,10 @@ export class DeliveriesController {
     @CurrentTenant() tenantId: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
+    @CurrentUser() user?: { role?: string; storeId?: string },
   ) {
-    return this.deliveriesService.getStats(tenantId, dateFrom, dateTo);
+    const storeId = getScopedStoreId(user);
+    return this.deliveriesService.getStats(tenantId, dateFrom, dateTo, storeId);
   }
 
   @Get('today')
@@ -88,8 +97,12 @@ export class DeliveriesController {
     description: 'Liste les livraisons prévues pour aujourd\'hui',
   })
   @ApiResponse({ status: 200, description: 'Livraisons planifiées aujourd\'hui' })
-  getTodayScheduled(@CurrentTenant() tenantId: string) {
-    return this.deliveriesService.getTodayScheduled(tenantId);
+  getTodayScheduled(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
+  ) {
+    const storeId = getScopedStoreId(user);
+    return this.deliveriesService.getTodayScheduled(tenantId, storeId);
   }
 
   @Get('pending')
@@ -99,8 +112,12 @@ export class DeliveriesController {
     description: 'Liste les livraisons en attente d\'assignation',
   })
   @ApiResponse({ status: 200, description: 'Livraisons à assigner' })
-  getPendingAssignment(@CurrentTenant() tenantId: string) {
-    return this.deliveriesService.getPendingAssignment(tenantId);
+  getPendingAssignment(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
+  ) {
+    const storeId = getScopedStoreId(user);
+    return this.deliveriesService.getPendingAssignment(tenantId, storeId);
   }
 
   @Get('tracking/:trackingNumber')
@@ -114,8 +131,10 @@ export class DeliveriesController {
   findByTracking(
     @Param('trackingNumber') trackingNumber: string,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
   ) {
-    return this.deliveriesService.findByTracking(trackingNumber, tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.deliveriesService.findByTracking(trackingNumber, tenantId, storeId);
   }
 
   @Get('order/:orderId')
@@ -129,8 +148,10 @@ export class DeliveriesController {
   findByOrder(
     @Param('orderId', ParseUUIDPipe) orderId: string,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
   ) {
-    return this.deliveriesService.findByOrder(orderId, tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.deliveriesService.findByOrder(orderId, tenantId, storeId);
   }
 
   @Get('person/:personId/stats')
@@ -143,8 +164,10 @@ export class DeliveriesController {
   getDeliveryPersonStats(
     @Param('personId', ParseUUIDPipe) personId: string,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
   ) {
-    return this.deliveriesService.getDeliveryPersonStats(personId, tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.deliveriesService.getDeliveryPersonStats(personId, tenantId, storeId);
   }
 
   @Get(':id')
@@ -158,8 +181,10 @@ export class DeliveriesController {
   findOne(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
   ) {
-    return this.deliveriesService.findOne(id, tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.deliveriesService.findOne(id, tenantId, storeId);
   }
 
   @Patch(':id')
@@ -174,8 +199,10 @@ export class DeliveriesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateDeliveryDto: UpdateDeliveryDto,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
   ) {
-    return this.deliveriesService.update(id, updateDeliveryDto, tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.deliveriesService.update(id, updateDeliveryDto, tenantId, storeId);
   }
 
   @Post(':id/assign')
@@ -191,8 +218,10 @@ export class DeliveriesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() assignDto: AssignDeliveryDto,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
   ) {
-    return this.deliveriesService.assign(id, assignDto, tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.deliveriesService.assign(id, assignDto, tenantId, storeId);
   }
 
   @Patch(':id/status')
@@ -208,8 +237,10 @@ export class DeliveriesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() statusDto: UpdateDeliveryStatusDto,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
   ) {
-    return this.deliveriesService.updateStatus(id, statusDto, tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.deliveriesService.updateStatus(id, statusDto, tenantId, storeId);
   }
 
   @Post(':id/cancel')
@@ -225,7 +256,9 @@ export class DeliveriesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body('reason') reason: string,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
   ) {
-    return this.deliveriesService.cancel(id, tenantId, reason);
+    const storeId = getScopedStoreId(user);
+    return this.deliveriesService.cancel(id, tenantId, reason, storeId);
   }
 }

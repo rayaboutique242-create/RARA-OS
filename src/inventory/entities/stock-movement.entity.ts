@@ -39,6 +39,9 @@ export class StockMovement {
   @Column({ name: 'tenant_id', type: 'varchar' })
   tenantId: string;
 
+  @Column({ name: 'store_id', type: 'varchar', nullable: true })
+  storeId: string;
+
   @Column({ name: 'product_id', type: 'varchar' })
   productId: string;
 

@@ -30,6 +30,9 @@ export class InventoryCount {
   @Column({ name: 'tenant_id', type: 'varchar' })
   tenantId: string;
 
+  @Column({ name: 'store_id', type: 'varchar', nullable: true })
+  storeId: string;
+
   @Column({ name: 'count_number', type: 'varchar', unique: true })
   countNumber: string;
 

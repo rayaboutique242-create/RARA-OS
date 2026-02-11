@@ -75,6 +75,9 @@ export class StoreCredit {
   @Column({ type: 'varchar', length: 50, nullable: true })
   tenantId: string | null;
 
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  storeId: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

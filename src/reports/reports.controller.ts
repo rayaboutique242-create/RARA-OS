@@ -22,6 +22,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ReportsService } from './reports.service';
 import { ReportQueryDto, DashboardQueryDto } from './dto/report-query.dto';
 import { CacheResponse, CacheShort, CacheKeys } from '../cache/cache.decorators';
+import { getScopedStoreId } from '../common/utils/store-scope';
 
 @ApiTags('Reports')
 @ApiBearerAuth()
@@ -35,7 +36,8 @@ export class ReportsController {
   @ApiOperation({ summary: 'Tableau de bord principal avec KPIs' })
   @ApiResponse({ status: 200, description: 'Donnees du dashboard' })
   getDashboard(@Query() query: DashboardQueryDto, @Request() req: any) {
-    return this.reportsService.getDashboard(query, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.reportsService.getDashboard(query, req.user.tenantId, storeId);
   }
 
   @Get('sales')
@@ -43,7 +45,8 @@ export class ReportsController {
   @ApiOperation({ summary: 'Rapport des ventes' })
   @ApiResponse({ status: 200, description: 'Rapport de ventes detaille' })
   getSalesReport(@Query() query: ReportQueryDto, @Request() req: any) {
-    return this.reportsService.getSalesReport(query, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.reportsService.getSalesReport(query, req.user.tenantId, storeId);
   }
 
   @Get('inventory')
@@ -51,7 +54,8 @@ export class ReportsController {
   @ApiOperation({ summary: 'Rapport d inventaire' })
   @ApiResponse({ status: 200, description: 'Etat des stocks' })
   getInventoryReport(@Query() query: ReportQueryDto, @Request() req: any) {
-    return this.reportsService.getInventoryReport(query, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.reportsService.getInventoryReport(query, req.user.tenantId, storeId);
   }
 
   @Get('customers')
@@ -59,7 +63,8 @@ export class ReportsController {
   @ApiOperation({ summary: 'Rapport clients et fidelite' })
   @ApiResponse({ status: 200, description: 'Analyse des clients' })
   getCustomersReport(@Query() query: ReportQueryDto, @Request() req: any) {
-    return this.reportsService.getCustomersReport(query, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.reportsService.getCustomersReport(query, req.user.tenantId, storeId);
   }
 
   @Get('deliveries')
@@ -67,7 +72,8 @@ export class ReportsController {
   @ApiOperation({ summary: 'Rapport des livraisons' })
   @ApiResponse({ status: 200, description: 'Performance des livraisons' })
   getDeliveriesReport(@Query() query: ReportQueryDto, @Request() req: any) {
-    return this.reportsService.getDeliveriesReport(query, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.reportsService.getDeliveriesReport(query, req.user.tenantId, storeId);
   }
 
   @Get('export/:type/csv')
@@ -81,7 +87,8 @@ export class ReportsController {
     @Request() req: any,
     @Res() res: Response,
   ) {
-    const data: any = await this.reportsService.getExportData(type, query, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    const data: any = await this.reportsService.getExportData(type, query, req.user.tenantId, storeId);
     let csvData: string;
     let filename: string;
     const date = new Date().toISOString().split('T')[0];
@@ -121,7 +128,8 @@ export class ReportsController {
     @Request() req: any,
     @Res() res: Response,
   ) {
-    const data = await this.reportsService.getExportData(type, query, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    const data = await this.reportsService.getExportData(type, query, req.user.tenantId, storeId);
     const date = new Date().toISOString().split('T')[0];
     const filename = `rapport-${type}-${date}.json`;
     res.setHeader('Content-Type', 'application/json');
@@ -136,7 +144,8 @@ export class ReportsController {
   async getRevenueKPI(@Query('period') period: string, @Request() req: any) {
     const periodMap: Record<string, string> = { today: 'TODAY', week: 'THIS_WEEK', month: 'THIS_MONTH', year: 'THIS_YEAR' };
     const query: DashboardQueryDto = { period: periodMap[period] || 'THIS_MONTH' } as any;
-    const dashboard = await this.reportsService.getDashboard(query, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    const dashboard = await this.reportsService.getDashboard(query, req.user.tenantId, storeId);
     return { period: query.period, revenue: dashboard.kpis.totalRevenue, orders: dashboard.kpis.totalOrders, avgOrderValue: dashboard.kpis.averageOrderValue, growth: dashboard.sales.revenueGrowth };
   }
 
@@ -144,7 +153,8 @@ export class ReportsController {
   @CacheShort('kpi:stock') // Cache 1 minute
   @ApiOperation({ summary: 'KPI: Etat des stocks' })
   async getStockKPI(@Request() req: any) {
-    const report = await this.reportsService.getInventoryReport({}, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    const report = await this.reportsService.getInventoryReport({}, req.user.tenantId, storeId);
     return { totalProducts: report.summary.totalProducts, totalStock: report.summary.totalStock, stockValue: report.summary.stockValue, lowStock: report.summary.lowStock, outOfStock: report.summary.outOfStock, healthScore: report.summary.totalProducts > 0 ? Math.round(((report.summary.totalProducts - report.summary.outOfStock - report.summary.lowStock) / report.summary.totalProducts) * 100) : 100 };
   }
 
@@ -152,7 +162,8 @@ export class ReportsController {
   @CacheShort('kpi:customers') // Cache 1 minute
   @ApiOperation({ summary: 'KPI: Clients' })
   async getCustomersKPI(@Request() req: any) {
-    const report = await this.reportsService.getCustomersReport({}, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    const report = await this.reportsService.getCustomersReport({}, req.user.tenantId, storeId);
     return { total: report.summary.totalCustomers, newThisMonth: report.summary.newCustomersInPeriod, avgLifetimeValue: report.summary.avgLifetimeValue, totalRevenue: report.summary.totalRevenue, pointsInCirculation: report.summary.totalPointsInCirculation };
   }
 
@@ -160,7 +171,8 @@ export class ReportsController {
   @CacheShort('kpi:deliveries') // Cache 1 minute
   @ApiOperation({ summary: 'KPI: Livraisons' })
   async getDeliveriesKPI(@Request() req: any) {
-    const report = await this.reportsService.getDeliveriesReport({}, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    const report = await this.reportsService.getDeliveriesReport({}, req.user.tenantId, storeId);
     return { total: report.summary.total, delivered: report.summary.delivered, failed: report.summary.failed, successRate: report.summary.successRate, totalFees: report.summary.totalFees };
   }
 }

@@ -6,10 +6,11 @@ import { PaymentsController } from './payments.controller';
 import { PaymentMethod } from './entities/payment-method.entity';
 import { Transaction } from './entities/transaction.entity';
 import { Refund } from './entities/refund.entity';
+import { Order } from '../orders/entities/order.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([PaymentMethod, Transaction, Refund]),
+    TypeOrmModule.forFeature([PaymentMethod, Transaction, Refund, Order]),
   ],
   controllers: [PaymentsController],
   providers: [PaymentsService],

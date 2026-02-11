@@ -92,7 +92,7 @@ export class ReportsService {
 
   // ==================== DASHBOARD ====================
 
-  async getDashboard(query: DashboardQueryDto, tenantId: string) {
+  async getDashboard(query: DashboardQueryDto, tenantId: string, storeId?: string) {
     const { period = ReportPeriod.THIS_MONTH, startDate, endDate } = query;
     const { start, end } = this.getDateRange(period, startDate, endDate);
 
@@ -108,15 +108,15 @@ export class ReportsService {
       recentOrders,
       lowStockProducts,
     ] = await Promise.all([
-      this.getSalesKPIs(tenantId, start, end),
-      this.getOrdersCount(tenantId, start, end),
-      this.getCustomersCount(tenantId, start, end),
-      this.getProductsCount(tenantId),
-      this.getDeliveriesStats(tenantId, start, end),
-      this.getTopProducts(tenantId, start, end, 5),
-      this.getTopCustomers(tenantId, start, end, 5),
-      this.getRecentOrders(tenantId, 10),
-      this.getLowStockProducts(tenantId, 10),
+      this.getSalesKPIs(tenantId, start, end, storeId),
+      this.getOrdersCount(tenantId, start, end, storeId),
+      this.getCustomersCount(tenantId, start, end, storeId),
+      this.getProductsCount(tenantId, storeId),
+      this.getDeliveriesStats(tenantId, start, end, storeId),
+      this.getTopProducts(tenantId, start, end, 5, storeId),
+      this.getTopCustomers(tenantId, start, end, 5, storeId),
+      this.getRecentOrders(tenantId, 10, storeId),
+      this.getLowStockProducts(tenantId, 10, storeId),
     ]);
 
     return {
@@ -142,7 +142,7 @@ export class ReportsService {
     };
   }
 
-  private async getSalesKPIs(tenantId: string, start: Date, end: Date) {
+  private async getSalesKPIs(tenantId: string, start: Date, end: Date, storeId?: string) {
     const result = await this.orderRepository
       .createQueryBuilder('order')
       .select('SUM(order.total)', 'totalRevenue')
@@ -151,6 +151,7 @@ export class ReportsService {
       .addSelect('SUM(order.discountAmount)', 'totalDiscounts')
       .where('order.tenantId = :tenantId', { tenantId })
       .andWhere('order.createdAt BETWEEN :start AND :end', { start, end })
+      .andWhere(storeId ? 'order.store_id = :storeId' : '1=1', { storeId })
       .andWhere('order.status NOT IN (:...excludedStatuses)', { 
         excludedStatuses: ['CANCELLED', 'REFUNDED'] 
       })
@@ -166,6 +167,7 @@ export class ReportsService {
       .select('SUM(order.total)', 'totalRevenue')
       .where('order.tenantId = :tenantId', { tenantId })
       .andWhere('order.createdAt BETWEEN :start AND :end', { start: prevStart, end: prevEnd })
+      .andWhere(storeId ? 'order.store_id = :storeId' : '1=1', { storeId })
       .andWhere('order.status NOT IN (:...excludedStatuses)', { 
         excludedStatuses: ['CANCELLED', 'REFUNDED'] 
       })
@@ -187,13 +189,14 @@ export class ReportsService {
     };
   }
 
-  private async getOrdersCount(tenantId: string, start: Date, end: Date) {
+  private async getOrdersCount(tenantId: string, start: Date, end: Date, storeId?: string) {
     const statusCounts = await this.orderRepository
       .createQueryBuilder('order')
       .select('order.status', 'status')
       .addSelect('COUNT(*)', 'count')
       .where('order.tenantId = :tenantId', { tenantId })
       .andWhere('order.createdAt BETWEEN :start AND :end', { start, end })
+      .andWhere(storeId ? 'order.store_id = :storeId' : '1=1', { storeId })
       .groupBy('order.status')
       .getRawMany();
 
@@ -206,33 +209,40 @@ export class ReportsService {
     return { total, byStatus };
   }
 
-  private async getCustomersCount(tenantId: string, start: Date, end: Date) {
-    const total = await this.customerRepository.count({ where: { tenantId } });
+  private async getCustomersCount(tenantId: string, start: Date, end: Date, storeId?: string) {
+    const total = await this.customerRepository.count({
+      where: storeId ? { tenantId, storeId } : { tenantId },
+    });
     const newCustomers = await this.customerRepository
       .createQueryBuilder('customer')
       .where('customer.tenantId = :tenantId', { tenantId })
       .andWhere('customer.createdAt BETWEEN :start AND :end', { start, end })
+      .andWhere(storeId ? 'customer.storeId = :storeId' : '1=1', { storeId })
       .getCount();
 
     return { total, new: newCustomers };
   }
 
-  private async getProductsCount(tenantId: string) {
-    const total = await this.productRepository.count({ where: { tenantId } });
-    const active = await this.productRepository.count({ 
-      where: { tenantId, isActive: true } 
+  private async getProductsCount(tenantId: string, storeId?: string) {
+    const total = await this.productRepository.count({
+      where: storeId ? { tenantId, storeId } : { tenantId },
+    });
+    const active = await this.productRepository.count({
+      where: storeId ? { tenantId, storeId, isActive: true } : { tenantId, isActive: true },
     });
 
     return { total, active };
   }
 
-  private async getDeliveriesStats(tenantId: string, start: Date, end: Date) {
+  private async getDeliveriesStats(tenantId: string, start: Date, end: Date, storeId?: string) {
     const stats = await this.deliveryRepository
       .createQueryBuilder('delivery')
+      .leftJoin('delivery.order', 'order')
       .select('delivery.status', 'status')
       .addSelect('COUNT(*)', 'count')
       .where('delivery.tenantId = :tenantId', { tenantId })
       .andWhere('delivery.createdAt BETWEEN :start AND :end', { start, end })
+      .andWhere(storeId ? 'order.store_id = :storeId' : '1=1', { storeId })
       .groupBy('delivery.status')
       .getRawMany();
 
@@ -247,13 +257,14 @@ export class ReportsService {
     };
   }
 
-  private async getTopProducts(tenantId: string, start: Date, end: Date, limit: number) {
+  private async getTopProducts(tenantId: string, start: Date, end: Date, limit: number, storeId?: string) {
     // Cette requÃªte nÃ©cessite une jointure avec OrderItems
     const products = await this.productRepository
       .createQueryBuilder('product')
       .select(['product.id', 'product.name', 'product.sku', 'product.sellingPrice'])
       .addSelect('product.stockQuantity', 'stock')
       .where('product.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 'product.store_id = :storeId' : '1=1', { storeId })
       .orderBy('product.stockQuantity', 'DESC')
       .take(limit)
       .getMany();
@@ -267,7 +278,7 @@ export class ReportsService {
     }));
   }
 
-  private async getTopCustomers(tenantId: string, start: Date, end: Date, limit: number) {
+  private async getTopCustomers(tenantId: string, start: Date, end: Date, limit: number, storeId?: string) {
     const customers = await this.customerRepository
       .createQueryBuilder('customer')
       .select(['customer.id', 'customer.firstName', 'customer.lastName', 'customer.customerCode'])
@@ -275,6 +286,7 @@ export class ReportsService {
       .addSelect('customer.totalOrders', 'totalOrders')
       .addSelect('customer.loyaltyTier', 'tier')
       .where('customer.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 'customer.storeId = :storeId' : '1=1', { storeId })
       .orderBy('customer.totalSpent', 'DESC')
       .take(limit)
       .getMany();
@@ -289,9 +301,9 @@ export class ReportsService {
     }));
   }
 
-  private async getRecentOrders(tenantId: string, limit: number) {
+  private async getRecentOrders(tenantId: string, limit: number, storeId?: string) {
     const orders = await this.orderRepository.find({
-      where: { tenantId },
+      where: storeId ? { tenantId, storeId } : { tenantId },
       order: { createdAt: 'DESC' },
       take: limit,
       select: ['id', 'orderNumber', 'customerName', 'total', 'status', 'createdAt'],
@@ -300,10 +312,11 @@ export class ReportsService {
     return orders;
   }
 
-  private async getLowStockProducts(tenantId: string, limit: number) {
+  private async getLowStockProducts(tenantId: string, limit: number, storeId?: string) {
     const products = await this.productRepository
       .createQueryBuilder('product')
       .where('product.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 'product.store_id = :storeId' : '1=1', { storeId })
       .andWhere('product.stockQuantity <= product.minStockLevel')
       .andWhere('product.isActive = :isActive', { isActive: true })
       .orderBy('product.stockQuantity', 'ASC')
@@ -322,7 +335,7 @@ export class ReportsService {
 
   // ==================== RAPPORTS VENTES ====================
 
-  async getSalesReport(query: ReportQueryDto, tenantId: string) {
+  async getSalesReport(query: ReportQueryDto, tenantId: string, storeId?: string) {
     const { period = ReportPeriod.THIS_MONTH, startDate, endDate, groupBy = 'day' } = query;
     const { start, end } = this.getDateRange(period, startDate, endDate);
 
@@ -346,6 +359,7 @@ export class ReportsService {
       .addSelect('SUM(order.total)', 'revenue')
       .addSelect('AVG(order.total)', 'avgOrderValue')
       .where('order.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 'order.store_id = :storeId' : '1=1', { storeId })
       .andWhere('order.createdAt BETWEEN :start AND :end', { start, end })
       .andWhere('order.status NOT IN (:...excludedStatuses)', { 
         excludedStatuses: ['CANCELLED', 'REFUNDED'] 
@@ -361,6 +375,7 @@ export class ReportsService {
       .addSelect('COUNT(*)', 'count')
       .addSelect('SUM(order.total)', 'total')
       .where('order.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 'order.store_id = :storeId' : '1=1', { storeId })
       .andWhere('order.createdAt BETWEEN :start AND :end', { start, end })
       .andWhere('order.status NOT IN (:...excludedStatuses)', { 
         excludedStatuses: ['CANCELLED', 'REFUNDED'] 
@@ -377,6 +392,7 @@ export class ReportsService {
       .addSelect('SUM(order.taxAmount)', 'totalTax')
       .addSelect('SUM(order.discountAmount)', 'totalDiscounts')
       .where('order.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 'order.store_id = :storeId' : '1=1', { storeId })
       .andWhere('order.createdAt BETWEEN :start AND :end', { start, end })
       .andWhere('order.status NOT IN (:...excludedStatuses)', { 
         excludedStatuses: ['CANCELLED', 'REFUNDED'] 
@@ -412,13 +428,14 @@ export class ReportsService {
 
   // ==================== RAPPORTS INVENTAIRE ====================
 
-  async getInventoryReport(query: ReportQueryDto, tenantId: string) {
+  async getInventoryReport(query: ReportQueryDto, tenantId: string, storeId?: string) {
     const { limit = 100 } = query;
 
     // Tous les produits avec leur statut stock
     const products = await this.productRepository
       .createQueryBuilder('product')
       .where('product.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 'product.store_id = :storeId' : '1=1', { storeId })
       .orderBy('product.stockQuantity', 'ASC')
       .take(limit)
       .getMany();
@@ -432,6 +449,7 @@ export class ReportsService {
       .addSelect('SUM(CASE WHEN product.stockQuantity = 0 THEN 1 ELSE 0 END)', 'outOfStock')
       .addSelect('SUM(CASE WHEN product.stockQuantity <= product.minStockLevel AND product.stockQuantity > 0 THEN 1 ELSE 0 END)', 'lowStock')
       .where('product.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 'product.store_id = :storeId' : '1=1', { storeId })
       .andWhere('product.isActive = :isActive', { isActive: true })
       .getRawOne();
 
@@ -471,7 +489,7 @@ export class ReportsService {
 
   // ==================== RAPPORTS CLIENTS ====================
 
-  async getCustomersReport(query: ReportQueryDto, tenantId: string) {
+  async getCustomersReport(query: ReportQueryDto, tenantId: string, storeId?: string) {
     const { period = ReportPeriod.THIS_MONTH, startDate, endDate, limit = 100 } = query;
     const { start, end } = this.getDateRange(period, startDate, endDate);
 
@@ -480,6 +498,7 @@ export class ReportsService {
       .createQueryBuilder('customer')
       .where('customer.tenantId = :tenantId', { tenantId })
       .andWhere('customer.createdAt BETWEEN :start AND :end', { start, end })
+      .andWhere(storeId ? 'customer.storeId = :storeId' : '1=1', { storeId })
       .getMany();
 
     // Par tier de fidÃ©litÃ©
@@ -489,6 +508,7 @@ export class ReportsService {
       .addSelect('COUNT(*)', 'count')
       .addSelect('SUM(customer.totalSpent)', 'totalSpent')
       .where('customer.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 'customer.storeId = :storeId' : '1=1', { storeId })
       .groupBy('customer.loyaltyTier')
       .getRawMany();
 
@@ -498,6 +518,7 @@ export class ReportsService {
       .select('customer.customerType', 'type')
       .addSelect('COUNT(*)', 'count')
       .where('customer.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 'customer.storeId = :storeId' : '1=1', { storeId })
       .groupBy('customer.customerType')
       .getRawMany();
 
@@ -505,6 +526,7 @@ export class ReportsService {
     const topCustomers = await this.customerRepository
       .createQueryBuilder('customer')
       .where('customer.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 'customer.storeId = :storeId' : '1=1', { storeId })
       .orderBy('customer.totalSpent', 'DESC')
       .take(10)
       .getMany();
@@ -517,6 +539,7 @@ export class ReportsService {
       .addSelect('SUM(customer.loyaltyPoints)', 'totalPointsInCirculation')
       .addSelect('AVG(customer.totalSpent)', 'avgLifetimeValue')
       .where('customer.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 'customer.storeId = :storeId' : '1=1', { storeId })
       .getRawOne();
 
     return {
@@ -560,14 +583,19 @@ export class ReportsService {
 
   // ==================== RAPPORTS LIVRAISONS ====================
 
-  async getDeliveriesReport(query: ReportQueryDto, tenantId: string) {
+  async getDeliveriesReport(query: ReportQueryDto, tenantId: string, storeId?: string) {
     const { period = ReportPeriod.THIS_MONTH, startDate, endDate, deliveryPersonId } = query;
     const { start, end } = this.getDateRange(period, startDate, endDate);
 
     const queryBuilder = this.deliveryRepository
       .createQueryBuilder('delivery')
+      .leftJoin('delivery.order', 'order')
       .where('delivery.tenantId = :tenantId', { tenantId })
       .andWhere('delivery.createdAt BETWEEN :start AND :end', { start, end });
+
+    if (storeId) {
+      queryBuilder.andWhere('order.store_id = :storeId', { storeId });
+    }
 
     if (deliveryPersonId) {
       queryBuilder.andWhere('delivery.deliveryPersonId = :deliveryPersonId', { deliveryPersonId });
@@ -650,18 +678,18 @@ export class ReportsService {
 
   // ==================== EXPORT DATA ====================
 
-  async getExportData(reportType: string, query: ReportQueryDto, tenantId: string) {
+  async getExportData(reportType: string, query: ReportQueryDto, tenantId: string, storeId?: string) {
     switch (reportType) {
       case 'sales':
-        return this.getSalesReport(query, tenantId);
+        return this.getSalesReport(query, tenantId, storeId);
       case 'inventory':
-        return this.getInventoryReport(query, tenantId);
+        return this.getInventoryReport(query, tenantId, storeId);
       case 'customers':
-        return this.getCustomersReport(query, tenantId);
+        return this.getCustomersReport(query, tenantId, storeId);
       case 'deliveries':
-        return this.getDeliveriesReport(query, tenantId);
+        return this.getDeliveriesReport(query, tenantId, storeId);
       default:
-        return this.getDashboard(query, tenantId);
+        return this.getDashboard(query, tenantId, storeId);
     }
   }
 

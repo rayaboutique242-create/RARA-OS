@@ -23,6 +23,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { CurrentTenant } from '../common/decorators/current-tenant.decorator';
 import { Role } from '../common/constants/roles';
 import { CacheResponse, CacheKeys, CacheShort } from '../cache/cache.decorators';
+import { getScopedStoreId } from '../common/utils/store-scope';
 
 @ApiTags('Products')
 @ApiBearerAuth('JWT-auth')
@@ -41,9 +42,10 @@ export class ProductsController {
   create(
     @Body() createProductDto: CreateProductDto,
     @CurrentTenant() tenantId: string,
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: { id: string; role?: string; storeId?: string },
   ) {
-    return this.productsService.create(createProductDto, tenantId, userId);
+    const storeId = getScopedStoreId(user);
+    return this.productsService.create(createProductDto, tenantId, user.id, storeId);
   }
 
   @Get()
@@ -53,8 +55,10 @@ export class ProductsController {
   findAll(
     @CurrentTenant() tenantId: string,
     @Query() query: QueryProductDto,
+    @CurrentUser() user: { role?: string; storeId?: string },
   ) {
-    return this.productsService.findAll(tenantId, query);
+    const storeId = getScopedStoreId(user);
+    return this.productsService.findAll(tenantId, query, storeId);
   }
 
   @Get('stats')
@@ -62,8 +66,12 @@ export class ProductsController {
   @CacheShort(CacheKeys.PRODUCTS_STATS) // Cache 1 minute
   @ApiOperation({ summary: 'Statistiques produits', description: 'Retourne les statistiques globales des produits' })
   @ApiResponse({ status: 200, description: 'Statistiques: total, valeur stock, alertes, etc.' })
-  getStats(@CurrentTenant() tenantId: string) {
-    return this.productsService.getProductStats(tenantId);
+  getStats(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
+  ) {
+    const storeId = getScopedStoreId(user);
+    return this.productsService.getProductStats(tenantId, storeId);
   }
 
   @Get('low-stock')
@@ -71,8 +79,12 @@ export class ProductsController {
   @CacheShort(CacheKeys.PRODUCTS_LOW_STOCK) // Cache 1 minute
   @ApiOperation({ summary: 'Produits en rupture', description: 'Liste les produits dont le stock est inferieur au seuil minimum' })
   @ApiResponse({ status: 200, description: 'Liste des produits a reapprovisionner' })
-  getLowStock(@CurrentTenant() tenantId: string) {
-    return this.productsService.getLowStockProducts(tenantId);
+  getLowStock(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
+  ) {
+    const storeId = getScopedStoreId(user);
+    return this.productsService.getLowStockProducts(tenantId, storeId);
   }
 
   @Get('sku/:sku')
@@ -83,8 +95,10 @@ export class ProductsController {
   findBySku(
     @Param('sku') sku: string,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
   ) {
-    return this.productsService.findBySku(sku, tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.productsService.findBySku(sku, tenantId, storeId);
   }
 
   @Get('barcode/:barcode')
@@ -95,8 +109,10 @@ export class ProductsController {
   findByBarcode(
     @Param('barcode') barcode: string,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
   ) {
-    return this.productsService.findByBarcode(barcode, tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.productsService.findByBarcode(barcode, tenantId, storeId);
   }
 
   @Get(':id')
@@ -107,8 +123,10 @@ export class ProductsController {
   findOne(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
   ) {
-    return this.productsService.findOne(id, tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.productsService.findOne(id, tenantId, storeId);
   }
 
   @Patch(':id')
@@ -121,8 +139,10 @@ export class ProductsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateProductDto: UpdateProductDto,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
   ) {
-    return this.productsService.update(id, updateProductDto, tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.productsService.update(id, updateProductDto, tenantId, storeId);
   }
 
   @Patch(':id/stock')
@@ -134,8 +154,10 @@ export class ProductsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body('quantity') quantity: number,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
   ) {
-    return this.productsService.updateStock(id, quantity, tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.productsService.updateStock(id, quantity, tenantId, storeId);
   }
 
   @Patch(':id/stock/adjust')
@@ -147,8 +169,10 @@ export class ProductsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body('adjustment') adjustment: number,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
   ) {
-    return this.productsService.adjustStock(id, adjustment, tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.productsService.adjustStock(id, adjustment, tenantId, storeId);
   }
 
   @Delete(':id')
@@ -160,7 +184,9 @@ export class ProductsController {
   remove(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
   ) {
-    return this.productsService.remove(id, tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.productsService.remove(id, tenantId, storeId);
   }
 }

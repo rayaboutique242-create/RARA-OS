@@ -90,6 +90,7 @@ export class InvitationsController {
   }
 
   @Post('use/:code')
+  @SkipTenantCheck()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Utiliser un code d invitation pour rejoindre' })

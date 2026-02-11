@@ -5,6 +5,7 @@ import { Repository, Between, Like, In } from 'typeorm';
 import { PaymentMethod, PaymentMethodType } from './entities/payment-method.entity';
 import { Transaction, TransactionType, TransactionStatus } from './entities/transaction.entity';
 import { Refund, RefundStatus, RefundReason } from './entities/refund.entity';
+import { Order } from '../orders/entities/order.entity';
 import { CreatePaymentMethodDto, UpdatePaymentMethodDto, PaymentMethodQueryDto } from './dto/create-payment-method.dto';
 import { CreateTransactionDto, UpdateTransactionDto, ProcessTransactionDto, TransactionQueryDto } from './dto/create-transaction.dto';
 import { CreateRefundDto, ApproveRefundDto, RejectRefundDto, ProcessRefundDto, RefundQueryDto } from './dto/create-refund.dto';
@@ -18,6 +19,8 @@ export class PaymentsService {
     private transactionRepo: Repository<Transaction>,
     @InjectRepository(Refund)
     private refundRepo: Repository<Refund>,
+    @InjectRepository(Order)
+    private orderRepo: Repository<Order>,
   ) {}
 
   // ==================== PAYMENT METHODS ====================
@@ -133,7 +136,13 @@ export class PaymentsService {
     return `${prefix}${String(sequence).padStart(6, '0')}`;
   }
 
-  async createTransaction(dto: CreateTransactionDto, tenantId: string, userId: string, userName: string): Promise<Transaction> {
+  async createTransaction(
+    dto: CreateTransactionDto,
+    tenantId: string,
+    userId: string,
+    userName: string,
+    storeId?: string,
+  ): Promise<Transaction> {
     const paymentMethod = await this.findPaymentMethodById(dto.paymentMethodId, tenantId);
 
     if (!paymentMethod.isActive) {
@@ -153,6 +162,19 @@ export class PaymentsService {
     const feeAmount = feePercent + paymentMethod.transactionFeeFixed;
     const netAmount = dto.amount - feeAmount;
 
+    let order: Order | null = null;
+    if (dto.orderId) {
+      order = await this.orderRepo.findOne({
+        where: storeId
+          ? { id: dto.orderId, tenantId, storeId }
+          : { id: dto.orderId, tenantId },
+      });
+
+      if (!order) {
+        throw new NotFoundException('Commande non trouvée');
+      }
+    }
+
     const transaction = this.transactionRepo.create({
       ...dto,
       transactionNumber: await this.generateTransactionNumber(),
@@ -161,6 +183,7 @@ export class PaymentsService {
       netAmount,
       status: TransactionStatus.PENDING,
       tenantId,
+      storeId: order?.storeId || storeId || null,
       processedBy: userId,
       processedByName: userName,
     });
@@ -168,7 +191,7 @@ export class PaymentsService {
     return this.transactionRepo.save(transaction);
   }
 
-  async findAllTransactions(query: TransactionQueryDto, tenantId: string) {
+  async findAllTransactions(query: TransactionQueryDto, tenantId: string, storeId?: string) {
     const page = query.page || 1;
     const limit = query.limit || 20;
     const skip = (page - 1) * limit;
@@ -177,6 +200,10 @@ export class PaymentsService {
       .createQueryBuilder('t')
       .leftJoinAndSelect('t.paymentMethod', 'pm')
       .where('t.tenantId = :tenantId', { tenantId });
+
+    if (storeId) {
+      qb.andWhere('t.storeId = :storeId', { storeId });
+    }
 
     if (query.type) {
       qb.andWhere('t.type = :type', { type: query.type });
@@ -223,9 +250,9 @@ export class PaymentsService {
     };
   }
 
-  async findTransactionById(id: string, tenantId: string): Promise<Transaction> {
+  async findTransactionById(id: string, tenantId: string, storeId?: string): Promise<Transaction> {
     const transaction = await this.transactionRepo.findOne({
-      where: { id, tenantId },
+      where: storeId ? { id, tenantId, storeId } : { id, tenantId },
       relations: ['paymentMethod', 'refunds'],
     });
 
@@ -236,9 +263,9 @@ export class PaymentsService {
     return transaction;
   }
 
-  async findTransactionByNumber(transactionNumber: string, tenantId: string): Promise<Transaction> {
+  async findTransactionByNumber(transactionNumber: string, tenantId: string, storeId?: string): Promise<Transaction> {
     const transaction = await this.transactionRepo.findOne({
-      where: { transactionNumber, tenantId },
+      where: storeId ? { transactionNumber, tenantId, storeId } : { transactionNumber, tenantId },
       relations: ['paymentMethod', 'refunds'],
     });
 
@@ -249,8 +276,8 @@ export class PaymentsService {
     return transaction;
   }
 
-  async completeTransaction(id: string, dto: ProcessTransactionDto, tenantId: string, userId: string, userName: string): Promise<Transaction> {
-    const transaction = await this.findTransactionById(id, tenantId);
+  async completeTransaction(id: string, dto: ProcessTransactionDto, tenantId: string, userId: string, userName: string, storeId?: string): Promise<Transaction> {
+    const transaction = await this.findTransactionById(id, tenantId, storeId);
 
     if (transaction.status !== TransactionStatus.PENDING && transaction.status !== TransactionStatus.PROCESSING) {
       throw new BadRequestException(`Transaction ne peut pas Ãªtre complÃ©tÃ©e (statut: ${transaction.status})`);
@@ -267,8 +294,8 @@ export class PaymentsService {
     return this.transactionRepo.save(transaction);
   }
 
-  async failTransaction(id: string, reason: string, tenantId: string): Promise<Transaction> {
-    const transaction = await this.findTransactionById(id, tenantId);
+  async failTransaction(id: string, reason: string, tenantId: string, storeId?: string): Promise<Transaction> {
+    const transaction = await this.findTransactionById(id, tenantId, storeId);
 
     if (transaction.status === TransactionStatus.COMPLETED) {
       throw new BadRequestException('Transaction dÃ©jÃ  complÃ©tÃ©e');
@@ -280,8 +307,8 @@ export class PaymentsService {
     return this.transactionRepo.save(transaction);
   }
 
-  async cancelTransaction(id: string, reason: string, tenantId: string): Promise<Transaction> {
-    const transaction = await this.findTransactionById(id, tenantId);
+  async cancelTransaction(id: string, reason: string, tenantId: string, storeId?: string): Promise<Transaction> {
+    const transaction = await this.findTransactionById(id, tenantId, storeId);
 
     if (transaction.status === TransactionStatus.COMPLETED) {
       throw new BadRequestException('Utilisez un remboursement pour annuler une transaction complÃ©tÃ©e');
@@ -293,17 +320,17 @@ export class PaymentsService {
     return this.transactionRepo.save(transaction);
   }
 
-  async getTransactionsByOrder(orderId: string, tenantId: string): Promise<Transaction[]> {
+  async getTransactionsByOrder(orderId: string, tenantId: string, storeId?: string): Promise<Transaction[]> {
     return this.transactionRepo.find({
-      where: { orderId, tenantId },
+      where: storeId ? { orderId, tenantId, storeId } : { orderId, tenantId },
       relations: ['paymentMethod'],
       order: { createdAt: 'DESC' },
     });
   }
 
-  async getTransactionsByCustomer(customerId: string, tenantId: string): Promise<Transaction[]> {
+  async getTransactionsByCustomer(customerId: string, tenantId: string, storeId?: string): Promise<Transaction[]> {
     return this.transactionRepo.find({
-      where: { customerId, tenantId },
+      where: storeId ? { customerId, tenantId, storeId } : { customerId, tenantId },
       relations: ['paymentMethod'],
       order: { createdAt: 'DESC' },
     });
@@ -330,8 +357,8 @@ export class PaymentsService {
     return `${prefix}${String(sequence).padStart(6, '0')}`;
   }
 
-  async createRefund(dto: CreateRefundDto, tenantId: string, userId: string, userName: string): Promise<Refund> {
-    const transaction = await this.findTransactionById(dto.transactionId, tenantId);
+  async createRefund(dto: CreateRefundDto, tenantId: string, userId: string, userName: string, storeId?: string): Promise<Refund> {
+    const transaction = await this.findTransactionById(dto.transactionId, tenantId, storeId);
 
     if (transaction.status !== TransactionStatus.COMPLETED && 
         transaction.status !== TransactionStatus.PARTIALLY_REFUNDED) {
@@ -361,12 +388,13 @@ export class PaymentsService {
       requestedBy: userId,
       requestedByName: userName,
       tenantId,
+      storeId: transaction.storeId || storeId || null,
     });
 
     return this.refundRepo.save(refund);
   }
 
-  async findAllRefunds(query: RefundQueryDto, tenantId: string) {
+  async findAllRefunds(query: RefundQueryDto, tenantId: string, storeId?: string) {
     const page = query.page || 1;
     const limit = query.limit || 20;
     const skip = (page - 1) * limit;
@@ -376,6 +404,10 @@ export class PaymentsService {
       .leftJoinAndSelect('r.transaction', 't')
       .leftJoinAndSelect('t.paymentMethod', 'pm')
       .where('r.tenantId = :tenantId', { tenantId });
+
+    if (storeId) {
+      qb.andWhere('r.storeId = :storeId', { storeId });
+    }
 
     if (query.status) {
       qb.andWhere('r.status = :status', { status: query.status });
@@ -419,9 +451,9 @@ export class PaymentsService {
     };
   }
 
-  async findRefundById(id: string, tenantId: string): Promise<Refund> {
+  async findRefundById(id: string, tenantId: string, storeId?: string): Promise<Refund> {
     const refund = await this.refundRepo.findOne({
-      where: { id, tenantId },
+      where: storeId ? { id, tenantId, storeId } : { id, tenantId },
       relations: ['transaction', 'transaction.paymentMethod'],
     });
 
@@ -432,8 +464,8 @@ export class PaymentsService {
     return refund;
   }
 
-  async approveRefund(id: string, dto: ApproveRefundDto, tenantId: string, userId: string, userName: string): Promise<Refund> {
-    const refund = await this.findRefundById(id, tenantId);
+  async approveRefund(id: string, dto: ApproveRefundDto, tenantId: string, userId: string, userName: string, storeId?: string): Promise<Refund> {
+    const refund = await this.findRefundById(id, tenantId, storeId);
 
     if (refund.status !== RefundStatus.PENDING) {
       throw new BadRequestException('Seuls les remboursements en attente peuvent Ãªtre approuvÃ©s');
@@ -448,8 +480,8 @@ export class PaymentsService {
     return this.refundRepo.save(refund);
   }
 
-  async rejectRefund(id: string, dto: RejectRefundDto, tenantId: string, userId: string, userName: string): Promise<Refund> {
-    const refund = await this.findRefundById(id, tenantId);
+  async rejectRefund(id: string, dto: RejectRefundDto, tenantId: string, userId: string, userName: string, storeId?: string): Promise<Refund> {
+    const refund = await this.findRefundById(id, tenantId, storeId);
 
     if (refund.status !== RefundStatus.PENDING) {
       throw new BadRequestException('Seuls les remboursements en attente peuvent Ãªtre rejetÃ©s');
@@ -464,8 +496,8 @@ export class PaymentsService {
     return this.refundRepo.save(refund);
   }
 
-  async processRefund(id: string, dto: ProcessRefundDto, tenantId: string, userId: string, userName: string): Promise<Refund> {
-    const refund = await this.findRefundById(id, tenantId);
+  async processRefund(id: string, dto: ProcessRefundDto, tenantId: string, userId: string, userName: string, storeId?: string): Promise<Refund> {
+    const refund = await this.findRefundById(id, tenantId, storeId);
 
     if (refund.status !== RefundStatus.APPROVED && refund.status !== RefundStatus.PROCESSING) {
       throw new BadRequestException('Le remboursement doit Ãªtre approuvÃ© pour Ãªtre traitÃ©');
@@ -495,9 +527,9 @@ export class PaymentsService {
     return this.refundRepo.save(refund);
   }
 
-  async getPendingRefunds(tenantId: string): Promise<Refund[]> {
+  async getPendingRefunds(tenantId: string, storeId?: string): Promise<Refund[]> {
     return this.refundRepo.find({
-      where: { tenantId, status: RefundStatus.PENDING },
+      where: storeId ? { tenantId, status: RefundStatus.PENDING, storeId } : { tenantId, status: RefundStatus.PENDING },
       relations: ['transaction', 'transaction.paymentMethod'],
       order: { createdAt: 'ASC' },
     });
@@ -505,7 +537,7 @@ export class PaymentsService {
 
   // ==================== DASHBOARD & STATS ====================
 
-  async getPaymentsDashboard(tenantId: string) {
+  async getPaymentsDashboard(tenantId: string, storeId?: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -519,6 +551,7 @@ export class PaymentsService {
       .addSelect('SUM(t.amount)', 'amount')
       .addSelect('SUM(t.netAmount)', 'netAmount')
       .where('t.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 't.storeId = :storeId' : '1=1', { storeId })
       .andWhere('t.status = :status', { status: TransactionStatus.COMPLETED })
       .andWhere('t.createdAt >= :today', { today })
       .getRawOne();
@@ -531,6 +564,7 @@ export class PaymentsService {
       .addSelect('SUM(t.netAmount)', 'netAmount')
       .addSelect('SUM(t.feeAmount)', 'fees')
       .where('t.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 't.storeId = :storeId' : '1=1', { storeId })
       .andWhere('t.status = :status', { status: TransactionStatus.COMPLETED })
       .andWhere('t.createdAt >= :start', { start: startOfMonth })
       .getRawOne();
@@ -544,6 +578,7 @@ export class PaymentsService {
       .addSelect('COUNT(*)', 'count')
       .addSelect('SUM(t.amount)', 'amount')
       .where('t.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 't.storeId = :storeId' : '1=1', { storeId })
       .andWhere('t.status = :status', { status: TransactionStatus.COMPLETED })
       .andWhere('t.createdAt >= :start', { start: startOfMonth })
       .groupBy('pm.id')
@@ -557,6 +592,7 @@ export class PaymentsService {
       .addSelect('COUNT(*)', 'count')
       .addSelect('SUM(r.amount)', 'amount')
       .where('r.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 'r.storeId = :storeId' : '1=1', { storeId })
       .andWhere('r.createdAt >= :start', { start: startOfMonth })
       .groupBy('r.status')
       .getRawMany();
@@ -568,6 +604,7 @@ export class PaymentsService {
       .addSelect('COUNT(*)', 'count')
       .addSelect('SUM(t.amount)', 'amount')
       .where('t.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 't.storeId = :storeId' : '1=1', { storeId })
       .andWhere('t.createdAt >= :start', { start: startOfMonth })
       .groupBy('t.status')
       .getRawMany();
@@ -579,7 +616,7 @@ export class PaymentsService {
 
     // Remboursements en attente
     const pendingRefundsCount = await this.refundRepo.count({
-      where: { tenantId, status: RefundStatus.PENDING },
+      where: storeId ? { tenantId, status: RefundStatus.PENDING, storeId } : { tenantId, status: RefundStatus.PENDING },
     });
 
     return {
@@ -617,7 +654,7 @@ export class PaymentsService {
     };
   }
 
-  async getTransactionStats(tenantId: string, startDate: Date, endDate: Date) {
+  async getTransactionStats(tenantId: string, startDate: Date, endDate: Date, storeId?: string) {
     const stats = await this.transactionRepo
       .createQueryBuilder('t')
       .select("strftime('%Y-%m-%d', t.createdAt)", 'date')
@@ -626,6 +663,7 @@ export class PaymentsService {
       .addSelect('SUM(CASE WHEN t.status = :failed THEN t.amount ELSE 0 END)', 'failed')
       .addSelect('SUM(CASE WHEN t.status = :refunded THEN t.refundedAmount ELSE 0 END)', 'refunded')
       .where('t.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 't.storeId = :storeId' : '1=1', { storeId })
       .andWhere('t.createdAt BETWEEN :start AND :end', { start: startDate, end: endDate })
       .setParameter('completed', TransactionStatus.COMPLETED)
       .setParameter('failed', TransactionStatus.FAILED)

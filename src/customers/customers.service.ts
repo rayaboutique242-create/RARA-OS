@@ -46,11 +46,11 @@ export class CustomersService {
     return Math.floor(amount * multipliers[tier]);
   }
 
-  async create(createCustomerDto: CreateCustomerDto, userId: string, tenantId: string): Promise<Customer> {
+  async create(createCustomerDto: CreateCustomerDto, userId: string, tenantId: string, storeId?: string): Promise<Customer> {
     // Vérifier l'unicité de l'email
     if (createCustomerDto.email) {
       const existingEmail = await this.customerRepository.findOne({
-        where: { email: createCustomerDto.email, tenantId },
+        where: storeId ? { email: createCustomerDto.email, tenantId, storeId } : { email: createCustomerDto.email, tenantId },
       });
       if (existingEmail) {
         throw new ConflictException('Un client avec cet email existe déjà');
@@ -59,7 +59,7 @@ export class CustomersService {
 
     // Vérifier l'unicité du téléphone
     const existingPhone = await this.customerRepository.findOne({
-      where: { phone: createCustomerDto.phone, tenantId },
+      where: storeId ? { phone: createCustomerDto.phone, tenantId, storeId } : { phone: createCustomerDto.phone, tenantId },
     });
     if (existingPhone) {
       throw new ConflictException('Un client avec ce numéro de téléphone existe déjà');
@@ -69,6 +69,7 @@ export class CustomersService {
       ...createCustomerDto,
       customerCode: this.generateCustomerCode(),
       tenantId,
+      storeId,
       createdBy: userId,
       dateOfBirth: createCustomerDto.dateOfBirth ? new Date(createCustomerDto.dateOfBirth) : undefined,
     });
@@ -76,7 +77,7 @@ export class CustomersService {
     return this.customerRepository.save(customer);
   }
 
-  async findAll(query: QueryCustomerDto, tenantId: string) {
+  async findAll(query: QueryCustomerDto, tenantId: string, storeId?: string) {
     const {
       search,
       status,
@@ -98,6 +99,10 @@ export class CustomersService {
     const queryBuilder = this.customerRepository
       .createQueryBuilder('customer')
       .where('customer.tenantId = :tenantId', { tenantId });
+
+    if (storeId) {
+      queryBuilder.andWhere('customer.storeId = :storeId', { storeId });
+    }
 
     // Recherche textuelle
     if (search) {
@@ -176,9 +181,14 @@ export class CustomersService {
     };
   }
 
-  async findOne(id: string, tenantId: string): Promise<Customer> {
+  async findOne(id: string, tenantId: string, storeId?: string): Promise<Customer> {
+    const where: Record<string, any> = { id, tenantId };
+    if (storeId) {
+      where.storeId = storeId;
+    }
+
     const customer = await this.customerRepository.findOne({
-      where: { id, tenantId },
+      where,
     });
 
     if (!customer) {
@@ -188,9 +198,14 @@ export class CustomersService {
     return customer;
   }
 
-  async findByCode(customerCode: string, tenantId: string): Promise<Customer> {
+  async findByCode(customerCode: string, tenantId: string, storeId?: string): Promise<Customer> {
+    const where: Record<string, any> = { customerCode, tenantId };
+    if (storeId) {
+      where.storeId = storeId;
+    }
+
     const customer = await this.customerRepository.findOne({
-      where: { customerCode, tenantId },
+      where,
     });
 
     if (!customer) {
@@ -200,25 +215,25 @@ export class CustomersService {
     return customer;
   }
 
-  async findByEmail(email: string, tenantId: string): Promise<Customer | null> {
+  async findByEmail(email: string, tenantId: string, storeId?: string): Promise<Customer | null> {
     return this.customerRepository.findOne({
-      where: { email, tenantId },
+      where: storeId ? { email, tenantId, storeId } : { email, tenantId },
     });
   }
 
-  async findByPhone(phone: string, tenantId: string): Promise<Customer | null> {
+  async findByPhone(phone: string, tenantId: string, storeId?: string): Promise<Customer | null> {
     return this.customerRepository.findOne({
-      where: { phone, tenantId },
+      where: storeId ? { phone, tenantId, storeId } : { phone, tenantId },
     });
   }
 
-  async update(id: string, updateCustomerDto: UpdateCustomerDto, tenantId: string): Promise<Customer> {
-    const customer = await this.findOne(id, tenantId);
+  async update(id: string, updateCustomerDto: UpdateCustomerDto, tenantId: string, storeId?: string): Promise<Customer> {
+    const customer = await this.findOne(id, tenantId, storeId);
 
     // Vérifier l'unicité de l'email si modifié
     if (updateCustomerDto.email && updateCustomerDto.email !== customer.email) {
       const existingEmail = await this.customerRepository.findOne({
-        where: { email: updateCustomerDto.email, tenantId },
+        where: storeId ? { email: updateCustomerDto.email, tenantId, storeId } : { email: updateCustomerDto.email, tenantId },
       });
       if (existingEmail) {
         throw new ConflictException('Un client avec cet email existe déjà');
@@ -228,7 +243,7 @@ export class CustomersService {
     // Vérifier l'unicité du téléphone si modifié
     if (updateCustomerDto.phone && updateCustomerDto.phone !== customer.phone) {
       const existingPhone = await this.customerRepository.findOne({
-        where: { phone: updateCustomerDto.phone, tenantId },
+        where: storeId ? { phone: updateCustomerDto.phone, tenantId, storeId } : { phone: updateCustomerDto.phone, tenantId },
       });
       if (existingPhone) {
         throw new ConflictException('Un client avec ce numéro de téléphone existe déjà');
@@ -243,16 +258,16 @@ export class CustomersService {
     return this.customerRepository.save(customer);
   }
 
-  async remove(id: string, tenantId: string): Promise<void> {
-    const customer = await this.findOne(id, tenantId);
+  async remove(id: string, tenantId: string, storeId?: string): Promise<void> {
+    const customer = await this.findOne(id, tenantId, storeId);
     
     // Soft delete - marquer comme inactif au lieu de supprimer
     customer.status = CustomerStatus.INACTIVE;
     await this.customerRepository.save(customer);
   }
 
-  async hardDelete(id: string, tenantId: string): Promise<void> {
-    const customer = await this.findOne(id, tenantId);
+  async hardDelete(id: string, tenantId: string, storeId?: string): Promise<void> {
+    const customer = await this.findOne(id, tenantId, storeId);
     await this.customerRepository.remove(customer);
   }
 
@@ -262,8 +277,9 @@ export class CustomersService {
     id: string,
     addPointsDto: AddLoyaltyPointsDto,
     tenantId: string,
+    storeId?: string,
   ): Promise<Customer> {
-    const customer = await this.findOne(id, tenantId);
+    const customer = await this.findOne(id, tenantId, storeId);
 
     customer.loyaltyPoints += addPointsDto.points;
     customer.totalPointsEarned += addPointsDto.points;
@@ -281,8 +297,9 @@ export class CustomersService {
     id: string,
     redeemDto: RedeemPointsDto,
     tenantId: string,
+    storeId?: string,
   ): Promise<{ customer: Customer; valueRedeemed: number }> {
-    const customer = await this.findOne(id, tenantId);
+    const customer = await this.findOne(id, tenantId, storeId);
 
     if (customer.loyaltyPoints < redeemDto.points) {
       throw new BadRequestException(
@@ -305,8 +322,9 @@ export class CustomersService {
     id: string,
     tierDto: UpdateLoyaltyTierDto,
     tenantId: string,
+    storeId?: string,
   ): Promise<Customer> {
-    const customer = await this.findOne(id, tenantId);
+    const customer = await this.findOne(id, tenantId, storeId);
     customer.loyaltyTier = tierDto.tier;
 
     // Si promu en VIP (Platinum), changer aussi le statut
@@ -317,8 +335,8 @@ export class CustomersService {
     return this.customerRepository.save(customer);
   }
 
-  async getLoyaltyInfo(id: string, tenantId: string) {
-    const customer = await this.findOne(id, tenantId);
+  async getLoyaltyInfo(id: string, tenantId: string, storeId?: string) {
+    const customer = await this.findOne(id, tenantId, storeId);
 
     const tierBenefits = {
       [LoyaltyTier.BRONZE]: {
@@ -386,8 +404,9 @@ export class CustomersService {
     orderTotal: number,
     orderId: string,
     tenantId: string,
+    storeId?: string,
   ): Promise<Customer> {
-    const customer = await this.findOne(customerId, tenantId);
+    const customer = await this.findOne(customerId, tenantId, storeId);
 
     customer.totalOrders += 1;
     customer.totalSpent = Number(customer.totalSpent) + orderTotal;
@@ -409,10 +428,14 @@ export class CustomersService {
     return this.customerRepository.save(customer);
   }
 
-  async getCustomerStats(tenantId: string) {
+  async getCustomerStats(tenantId: string, storeId?: string) {
     const queryBuilder = this.customerRepository
       .createQueryBuilder('customer')
       .where('customer.tenantId = :tenantId', { tenantId });
+
+    if (storeId) {
+      queryBuilder.andWhere('customer.storeId = :storeId', { storeId });
+    }
 
     const total = await queryBuilder.getCount();
 
@@ -421,6 +444,7 @@ export class CustomersService {
       .select('customer.status', 'status')
       .addSelect('COUNT(*)', 'count')
       .where('customer.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 'customer.storeId = :storeId' : '1=1', { storeId })
       .groupBy('customer.status')
       .getRawMany();
 
@@ -429,6 +453,7 @@ export class CustomersService {
       .select('customer.loyaltyTier', 'tier')
       .addSelect('COUNT(*)', 'count')
       .where('customer.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 'customer.storeId = :storeId' : '1=1', { storeId })
       .groupBy('customer.loyaltyTier')
       .getRawMany();
 
@@ -437,6 +462,7 @@ export class CustomersService {
       .select('customer.customerType', 'type')
       .addSelect('COUNT(*)', 'count')
       .where('customer.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 'customer.storeId = :storeId' : '1=1', { storeId })
       .groupBy('customer.customerType')
       .getRawMany();
 
@@ -447,6 +473,7 @@ export class CustomersService {
       .addSelect('AVG(customer.totalOrders)', 'avgOrdersPerCustomer')
       .addSelect('AVG(customer.totalSpent)', 'avgLifetimeValue')
       .where('customer.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 'customer.storeId = :storeId' : '1=1', { storeId })
       .getRawOne();
 
     // Nouveaux clients ce mois
@@ -457,6 +484,7 @@ export class CustomersService {
     const newThisMonth = await this.customerRepository
       .createQueryBuilder('customer')
       .where('customer.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 'customer.storeId = :storeId' : '1=1', { storeId })
       .andWhere('customer.createdAt >= :startOfMonth', { startOfMonth })
       .getCount();
 
@@ -465,6 +493,7 @@ export class CustomersService {
       .createQueryBuilder('customer')
       .select(['customer.id', 'customer.firstName', 'customer.lastName', 'customer.totalSpent', 'customer.totalOrders'])
       .where('customer.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 'customer.storeId = :storeId' : '1=1', { storeId })
       .orderBy('customer.totalSpent', 'DESC')
       .take(5)
       .getMany();
@@ -483,10 +512,10 @@ export class CustomersService {
     };
   }
 
-  async getPurchaseHistory(id: string, tenantId: string, page = 1, limit = 10) {
+  async getPurchaseHistory(id: string, tenantId: string, page = 1, limit = 10, storeId?: string) {
     // Cette méthode serait connectée au OrdersService
     // Pour l'instant, retourner les informations de base
-    const customer = await this.findOne(id, tenantId);
+    const customer = await this.findOne(id, tenantId, storeId);
 
     return {
       customerId: customer.id,
@@ -500,26 +529,36 @@ export class CustomersService {
     };
   }
 
-  async getInactiveCustomers(days: number, tenantId: string) {
+  async getInactiveCustomers(days: number, tenantId: string, storeId?: string) {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
 
+    const baseWhere: Record<string, any> = { tenantId };
+    if (storeId) {
+      baseWhere.storeId = storeId;
+    }
+
     return this.customerRepository.find({
       where: [
-        { tenantId, lastOrderDate: LessThan(cutoffDate) },
-        { tenantId, lastOrderDate: null as any, totalOrders: 0 },
+        { ...baseWhere, lastOrderDate: LessThan(cutoffDate) },
+        { ...baseWhere, lastOrderDate: null as any, totalOrders: 0 },
       ],
       order: { lastOrderDate: 'ASC' },
     });
   }
 
-  async getCustomersByBirthMonth(month: number, tenantId: string) {
+  async getCustomersByBirthMonth(month: number, tenantId: string, storeId?: string) {
     // Pour les anniversaires et campagnes marketing
-    const customers = await this.customerRepository
+    const queryBuilder = this.customerRepository
       .createQueryBuilder('customer')
       .where('customer.tenantId = :tenantId', { tenantId })
-      .andWhere('customer.dateOfBirth IS NOT NULL')
-      .getMany();
+      .andWhere('customer.dateOfBirth IS NOT NULL');
+
+    if (storeId) {
+      queryBuilder.andWhere('customer.storeId = :storeId', { storeId });
+    }
+
+    const customers = await queryBuilder.getMany();
 
     return customers.filter((c) => {
       const birthMonth = new Date(c.dateOfBirth).getMonth() + 1;

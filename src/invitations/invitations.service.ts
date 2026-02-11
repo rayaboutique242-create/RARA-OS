@@ -8,6 +8,8 @@ import { CreateInvitationDto, JoinByCodeDto } from './dto';
 import { randomBytes } from 'crypto';
 import { UserTenantsService } from '../user-tenants/user-tenants.service';
 import { JoinedVia } from '../user-tenants/entities/user-tenant.entity';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationChannel, NotificationType } from '../notifications/entities/notification.entity';
 
 @Injectable()
 export class InvitationsService implements OnModuleInit {
@@ -19,6 +21,7 @@ export class InvitationsService implements OnModuleInit {
     @InjectRepository(JoinRequest)
     private joinRequestRepository: Repository<JoinRequest>,
     private readonly userTenantsService: UserTenantsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async onModuleInit() {
@@ -290,7 +293,39 @@ export class InvitationsService implements OnModuleInit {
       message,
     });
 
-    return this.joinRequestRepository.save(joinRequest);
+    const saved = await this.joinRequestRepository.save(joinRequest);
+
+    try {
+      const members = await this.userTenantsService.findTenantMembers(tenantId);
+      const pdgMembers = members.filter((m) => m.role === 'PDG');
+      if (pdgMembers.length > 0) {
+        await Promise.all(
+          pdgMembers.map((m) =>
+            this.notificationsService.create(
+              {
+                type: NotificationType.INFO,
+                channel: NotificationChannel.IN_APP,
+                title: 'Nouvelle demande d\'acces',
+                message: `Un nouvel employe a demande l'acces avec le role ${requestedRole}.`,
+                userId: m.userId,
+                data: {
+                  joinRequestId: saved.id,
+                  requestedRole,
+                  requesterUserId: userId,
+                  tenantId,
+                },
+                link: '/invitations/join-requests',
+              },
+              tenantId,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      this.logger.warn(`Failed to notify PDG for join request ${saved.id}: ${e.message}`);
+    }
+
+    return saved;
   }
 
   /**

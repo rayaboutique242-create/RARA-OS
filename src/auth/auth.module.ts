@@ -18,10 +18,12 @@ import { RolesGuard } from './guards/roles.guard';
 import { Session } from './entities/session.entity';
 import { UsersModule } from '../users/users.module';
 import { Tenant } from '../tenants/entities/tenant.entity';
+import { UserTenantsModule } from '../user-tenants/user-tenants.module';
 
 @Module({
   imports: [
     UsersModule,
+    UserTenantsModule,
     TypeOrmModule.forFeature([Session, Tenant]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({

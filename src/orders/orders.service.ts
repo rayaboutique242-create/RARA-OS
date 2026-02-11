@@ -20,7 +20,7 @@ export class OrdersService {
     private productsService: ProductsService,
   ) {}
 
-  async create(createOrderDto: CreateOrderDto, tenantId: string, userId: string): Promise<Order> {
+  async create(createOrderDto: CreateOrderDto, tenantId: string, userId: string, storeId?: string): Promise<Order> {
     if (!createOrderDto.items || createOrderDto.items.length === 0) {
       throw new BadRequestException('La commande doit contenir au moins un article');
     }
@@ -31,7 +31,7 @@ export class OrdersService {
     const orderItems: OrderItem[] = [];
 
     for (const item of createOrderDto.items) {
-      const product = await this.productsService.findOne(item.productId, tenantId);
+      const product = await this.productsService.findOne(item.productId, tenantId, storeId);
 
       if (product.stockQuantity < item.quantity) {
         throw new BadRequestException('Stock insuffisant pour ' + product.name);
@@ -60,7 +60,7 @@ export class OrdersService {
 
       orderItems.push(orderItem);
 
-      await this.productsService.adjustStock(product.id, -item.quantity, tenantId);
+      await this.productsService.adjustStock(product.id, -item.quantity, tenantId, storeId);
     }
 
     const discountAmount = createOrderDto.discountAmount || 0;
@@ -69,6 +69,7 @@ export class OrdersService {
 
     const order = this.orderRepository.create({
       tenantId,
+      storeId,
       orderNumber,
       customerName: createOrderDto.customerName,
       customerPhone: createOrderDto.customerPhone,
@@ -88,7 +89,7 @@ export class OrdersService {
     return this.orderRepository.save(order);
   }
 
-  async findAll(tenantId: string, query: QueryOrderDto) {
+  async findAll(tenantId: string, query: QueryOrderDto, storeId?: string) {
     const { search, status, paymentStatus, createdBy, dateFrom, dateTo } = query;
     const page = query.page || 1;
     const limit = query.limit || 20;
@@ -99,6 +100,10 @@ export class OrdersService {
       .createQueryBuilder('order')
       .leftJoinAndSelect('order.items', 'items')
       .where('order.tenant_id = :tenantId', { tenantId });
+
+    if (storeId) {
+      queryBuilder.andWhere('order.store_id = :storeId', { storeId });
+    }
 
     if (search) {
       queryBuilder.andWhere(
@@ -147,9 +152,14 @@ export class OrdersService {
     };
   }
 
-  async findOne(id: string, tenantId: string): Promise<Order> {
+  async findOne(id: string, tenantId: string, storeId?: string): Promise<Order> {
+    const where: Record<string, any> = { id, tenantId };
+    if (storeId) {
+      where.storeId = storeId;
+    }
+
     const order = await this.orderRepository.findOne({
-      where: { id, tenantId },
+      where,
       relations: ['items'],
     });
 
@@ -160,9 +170,14 @@ export class OrdersService {
     return order;
   }
 
-  async findByOrderNumber(orderNumber: string, tenantId: string): Promise<Order> {
+  async findByOrderNumber(orderNumber: string, tenantId: string, storeId?: string): Promise<Order> {
+    const where: Record<string, any> = { orderNumber, tenantId };
+    if (storeId) {
+      where.storeId = storeId;
+    }
+
     const order = await this.orderRepository.findOne({
-      where: { orderNumber, tenantId },
+      where,
       relations: ['items'],
     });
 
@@ -173,8 +188,8 @@ export class OrdersService {
     return order;
   }
 
-  async update(id: string, updateOrderDto: UpdateOrderDto, tenantId: string): Promise<Order> {
-    const order = await this.findOne(id, tenantId);
+  async update(id: string, updateOrderDto: UpdateOrderDto, tenantId: string, storeId?: string): Promise<Order> {
+    const order = await this.findOne(id, tenantId, storeId);
 
     if (order.status === OrderStatus.DELIVERED || order.status === OrderStatus.CANCELLED) {
       throw new BadRequestException('Impossible de modifier une commande terminee ou annulee');
@@ -189,8 +204,8 @@ export class OrdersService {
     return this.orderRepository.save(order);
   }
 
-  async updateStatus(id: string, status: OrderStatus, tenantId: string): Promise<Order> {
-    const order = await this.findOne(id, tenantId);
+  async updateStatus(id: string, status: OrderStatus, tenantId: string, storeId?: string): Promise<Order> {
+    const order = await this.findOne(id, tenantId, storeId);
 
     if (order.status === OrderStatus.CANCELLED) {
       throw new BadRequestException('Impossible de modifier une commande annulee');
@@ -205,8 +220,8 @@ export class OrdersService {
     return this.orderRepository.save(order);
   }
 
-  async addPayment(id: string, paymentDto: AddPaymentDto, tenantId: string): Promise<Order> {
-    const order = await this.findOne(id, tenantId);
+  async addPayment(id: string, paymentDto: AddPaymentDto, tenantId: string, storeId?: string): Promise<Order> {
+    const order = await this.findOne(id, tenantId, storeId);
 
     if (order.status === OrderStatus.CANCELLED) {
       throw new BadRequestException('Impossible de payer une commande annulee');
@@ -225,8 +240,8 @@ export class OrdersService {
     return this.orderRepository.save(order);
   }
 
-  async cancel(id: string, tenantId: string): Promise<Order> {
-    const order = await this.findOne(id, tenantId);
+  async cancel(id: string, tenantId: string, storeId?: string): Promise<Order> {
+    const order = await this.findOne(id, tenantId, storeId);
 
     if (order.status === OrderStatus.DELIVERED) {
       throw new BadRequestException('Impossible d annuler une commande livree');
@@ -237,17 +252,21 @@ export class OrdersService {
     }
 
     for (const item of order.items) {
-      await this.productsService.adjustStock(item.productId, item.quantity, tenantId);
+      await this.productsService.adjustStock(item.productId, item.quantity, tenantId, storeId);
     }
 
     order.status = OrderStatus.CANCELLED;
     return this.orderRepository.save(order);
   }
 
-  async getStats(tenantId: string, dateFrom?: string, dateTo?: string) {
+  async getStats(tenantId: string, dateFrom?: string, dateTo?: string, storeId?: string) {
     const queryBuilder = this.orderRepository
       .createQueryBuilder('order')
       .where('order.tenant_id = :tenantId', { tenantId });
+
+    if (storeId) {
+      queryBuilder.andWhere('order.store_id = :storeId', { storeId });
+    }
 
     if (dateFrom) {
       queryBuilder.andWhere('order.created_at >= :dateFrom', { dateFrom });

@@ -12,6 +12,7 @@ import { Repository } from 'typeorm';
 import { IS_PUBLIC_KEY } from '../../auth/decorators/public.decorator';
 import { SKIP_TENANT_CHECK_KEY } from '../decorators/index';
 import { Tenant, TenantStatus } from '../../tenants/entities/tenant.entity';
+import { UserTenant, MembershipStatus } from '../../user-tenants/entities/user-tenant.entity';
 
 /**
  * Global TenantGuard — Strict multi-tenant isolation.
@@ -38,6 +39,8 @@ export class TenantGuard implements CanActivate {
     private readonly reflector: Reflector,
     @InjectRepository(Tenant)
     private readonly tenantRepository: Repository<Tenant>,
+    @InjectRepository(UserTenant)
+    private readonly userTenantRepository: Repository<UserTenant>,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -95,6 +98,24 @@ export class TenantGuard implements CanActivate {
       throw new ForbiddenException(
         `Votre entreprise est ${tenantStatus.toLowerCase()}. Contactez votre PDG ou le support.`,
       );
+    }
+
+    const userId = user.id || user.sub;
+    if (userId) {
+      const membership = await this.userTenantRepository.findOne({
+        where: {
+          userId: String(userId),
+          tenantId: String(jwtTenantId),
+          status: MembershipStatus.ACTIVE,
+        },
+      });
+
+      if (!membership) {
+        this.logger.warn(`User ${user.email} has no ACTIVE membership for tenant ${jwtTenantId}`);
+        throw new ForbiddenException(
+          'Votre demande d\'acces est en attente de validation par le PDG.',
+        );
+      }
     }
 
     // 7. Set canonical tenantId on request for downstream use

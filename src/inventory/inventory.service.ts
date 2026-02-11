@@ -16,6 +16,7 @@ import {
   CountItemDto,
   InventoryCountQueryDto,
 } from './dto/create-inventory-count.dto';
+import { getScopedStoreId } from '../common/utils/store-scope';
 
 @Injectable()
 export class InventoryService {
@@ -33,8 +34,11 @@ export class InventoryService {
   // ==================== STOCK MOVEMENTS ====================
 
   async createMovement(dto: CreateStockMovementDto, user: any): Promise<StockMovement> {
+    const storeId = getScopedStoreId(user);
     const product = await this.productRepository.findOne({
-      where: { id: dto.productId, tenantId: user.tenantId },
+      where: storeId
+        ? { id: dto.productId, tenantId: user.tenantId, storeId }
+        : { id: dto.productId, tenantId: user.tenantId },
     });
 
     if (!product) {
@@ -60,6 +64,7 @@ export class InventoryService {
 
     const movement = this.movementRepository.create({
       tenantId: user.tenantId,
+      storeId,
       productId: product.id,
       productName: product.name,
       productSku: product.sku,
@@ -88,8 +93,11 @@ export class InventoryService {
   }
 
   async adjustStock(dto: StockAdjustmentDto, user: any): Promise<StockMovement> {
+    const storeId = getScopedStoreId(user);
     const product = await this.productRepository.findOne({
-      where: { id: dto.productId, tenantId: user.tenantId },
+      where: storeId
+        ? { id: dto.productId, tenantId: user.tenantId, storeId }
+        : { id: dto.productId, tenantId: user.tenantId },
     });
 
     if (!product) {
@@ -101,6 +109,7 @@ export class InventoryService {
 
     const movement = this.movementRepository.create({
       tenantId: user.tenantId,
+      storeId,
       productId: product.id,
       productName: product.name,
       productSku: product.sku,
@@ -126,7 +135,10 @@ export class InventoryService {
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
 
+    const storeId = getScopedStoreId(user);
+
     const where: any = { tenantId: user.tenantId };
+    if (storeId) where.storeId = storeId;
 
     if (query.productId) where.productId = query.productId;
     if (query.type) where.type = query.type;
@@ -153,8 +165,9 @@ export class InventoryService {
   }
 
   async getMovementById(id: string, user: any): Promise<StockMovement> {
+    const storeId = getScopedStoreId(user);
     const movement = await this.movementRepository.findOne({
-      where: { id, tenantId: user.tenantId },
+      where: storeId ? { id, tenantId: user.tenantId, storeId } : { id, tenantId: user.tenantId },
     });
 
     if (!movement) {
@@ -168,9 +181,12 @@ export class InventoryService {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
+    const storeId = getScopedStoreId(user);
+
     return this.movementRepository.find({
       where: {
         tenantId: user.tenantId,
+        ...(storeId ? { storeId } : {}),
         productId,
         createdAt: MoreThanOrEqual(startDate),
       },
@@ -182,9 +198,12 @@ export class InventoryService {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
+    const storeId = getScopedStoreId(user);
+
     const movements = await this.movementRepository.find({
       where: {
         tenantId: user.tenantId,
+        ...(storeId ? { storeId } : {}),
         createdAt: MoreThanOrEqual(startDate),
       },
     });
@@ -217,11 +236,15 @@ export class InventoryService {
   // ==================== INVENTORY COUNTS ====================
 
   async createInventoryCount(dto: CreateInventoryCountDto, user: any): Promise<InventoryCount> {
-    const count = await this.inventoryCountRepository.count({ where: { tenantId: user.tenantId } });
+    const storeId = getScopedStoreId(user);
+    const count = await this.inventoryCountRepository.count({
+      where: storeId ? { tenantId: user.tenantId, storeId } : { tenantId: user.tenantId },
+    });
     const countNumber = `INV-${new Date().getFullYear()}-${String(count + 1).padStart(5, '0')}`;
 
     const inventoryCount = this.inventoryCountRepository.create({
       tenantId: user.tenantId,
+      storeId,
       countNumber,
       name: dto.name,
       description: dto.description ?? '',
@@ -239,15 +262,21 @@ export class InventoryService {
 
     if (dto.productIds && dto.productIds.length > 0) {
       products = await this.productRepository.find({
-        where: dto.productIds.map((id) => ({ id, tenantId: user.tenantId })),
+        where: dto.productIds.map((id) => storeId
+          ? ({ id, tenantId: user.tenantId, storeId })
+          : ({ id, tenantId: user.tenantId })),
       });
     } else if (dto.categoryId) {
       products = await this.productRepository.find({
-        where: { tenantId: user.tenantId, categoryId: dto.categoryId, isActive: true },
+        where: storeId
+          ? { tenantId: user.tenantId, categoryId: dto.categoryId, isActive: true, storeId }
+          : { tenantId: user.tenantId, categoryId: dto.categoryId, isActive: true },
       });
     } else {
       products = await this.productRepository.find({
-        where: { tenantId: user.tenantId, isActive: true },
+        where: storeId
+          ? { tenantId: user.tenantId, isActive: true, storeId }
+          : { tenantId: user.tenantId, isActive: true },
       });
     }
 
@@ -277,7 +306,10 @@ export class InventoryService {
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
 
+    const storeId = getScopedStoreId(user);
+
     const where: any = { tenantId: user.tenantId };
+    if (storeId) where.storeId = storeId;
     if (query.status) where.status = query.status;
     if (query.type) where.type = query.type;
 
@@ -292,8 +324,9 @@ export class InventoryService {
   }
 
   async getInventoryCountById(id: string, user: any): Promise<InventoryCount & { items?: InventoryCountItem[] }> {
+    const storeId = getScopedStoreId(user);
     const inventoryCount = await this.inventoryCountRepository.findOne({
-      where: { id, tenantId: user.tenantId },
+      where: storeId ? { id, tenantId: user.tenantId, storeId } : { id, tenantId: user.tenantId },
     });
 
     if (!inventoryCount) {
@@ -309,8 +342,9 @@ export class InventoryService {
   }
 
   async startInventoryCount(id: string, user: any): Promise<InventoryCount> {
+    const storeId = getScopedStoreId(user);
     const inventoryCount = await this.inventoryCountRepository.findOne({
-      where: { id, tenantId: user.tenantId },
+      where: storeId ? { id, tenantId: user.tenantId, storeId } : { id, tenantId: user.tenantId },
     });
 
     if (!inventoryCount) {
@@ -330,6 +364,7 @@ export class InventoryService {
   }
 
   async countItem(dto: CountItemDto, user: any): Promise<InventoryCountItem> {
+    const storeId = getScopedStoreId(user);
     const item = await this.inventoryCountItemRepository.findOne({
       where: { id: dto.itemId, tenantId: user.tenantId },
     });
@@ -339,7 +374,9 @@ export class InventoryService {
     }
 
     const inventoryCount = await this.inventoryCountRepository.findOne({
-      where: { id: item.inventoryCountId, tenantId: user.tenantId },
+      where: storeId
+        ? { id: item.inventoryCountId, tenantId: user.tenantId, storeId }
+        : { id: item.inventoryCountId, tenantId: user.tenantId },
     });
 
     if (!inventoryCount || inventoryCount.status !== InventoryCountStatus.IN_PROGRESS) {
@@ -447,8 +484,9 @@ export class InventoryService {
   }
 
   async cancelInventoryCount(id: string, user: any): Promise<InventoryCount> {
+    const storeId = getScopedStoreId(user);
     const inventoryCount = await this.inventoryCountRepository.findOne({
-      where: { id, tenantId: user.tenantId },
+      where: storeId ? { id, tenantId: user.tenantId, storeId } : { id, tenantId: user.tenantId },
     });
 
     if (!inventoryCount) {
@@ -465,6 +503,7 @@ export class InventoryService {
   }
 
   async getInventoryCountItems(inventoryCountId: string, user: any, onlyUncounted: boolean = false): Promise<InventoryCountItem[]> {
+    await this.getInventoryCountById(inventoryCountId, user);
     const where: any = { inventoryCountId, tenantId: user.tenantId };
     if (onlyUncounted) {
       where.isCounted = false;

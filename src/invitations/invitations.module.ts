@@ -6,11 +6,13 @@ import { InvitationsService } from './invitations.service';
 import { Invitation } from './entities/invitation.entity';
 import { JoinRequest } from './entities/join-request.entity';
 import { UserTenantsModule } from '../user-tenants/user-tenants.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Invitation, JoinRequest]),
     UserTenantsModule,
+    NotificationsModule,
   ],
   controllers: [InvitationsController],
   providers: [InvitationsService],

@@ -26,6 +26,7 @@ import { ReturnsService } from './returns.service';
 import { CreateReturnDto, UpdateReturnStatusDto, ProcessRefundDto, InspectItemDto, ReturnQueryDto } from './dto/create-return.dto';
 import { CreateStoreCreditDto, UseStoreCreditDto, StoreCreditQueryDto } from './dto/store-credit.dto';
 import { CreateReturnPolicyDto, UpdateReturnPolicyDto } from './dto/return-policy.dto';
+import { getScopedStoreId } from '../common/utils/store-scope';
 
 @ApiTags('Retours')
 @ApiBearerAuth()
@@ -47,30 +48,34 @@ export class ReturnsController {
   @ApiOperation({ summary: 'Lister les demandes de retour' })
   @ApiResponse({ status: 200, description: 'Liste des demandes de retour' })
   async getReturns(@Query() query: ReturnQueryDto, @Request() req: any) {
-    return this.returnsService.getReturns(query, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.returnsService.getReturns(query, req.user.tenantId, storeId);
   }
 
   @Get('statistics')
   @ApiOperation({ summary: 'Obtenir les statistiques des retours' })
   @ApiResponse({ status: 200, description: 'Statistiques des retours' })
   async getStatistics(@Request() req: any) {
-    return this.returnsService.getStatistics(req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.returnsService.getStatistics(req.user.tenantId, storeId);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Obtenir une demande de retour par ID' })
   @ApiParam({ name: 'id', description: 'ID de la demande de retour' })
   @ApiResponse({ status: 200, description: 'DÃ©tails de la demande de retour' })
-  async getReturnById(@Param('id', ParseIntPipe) id: number) {
-    return this.returnsService.getReturnById(id);
+  async getReturnById(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+    const storeId = getScopedStoreId(req.user);
+    return this.returnsService.getReturnById(id, storeId);
   }
 
   @Get('number/:returnNumber')
   @ApiOperation({ summary: 'Obtenir une demande de retour par numÃ©ro' })
   @ApiParam({ name: 'returnNumber', description: 'NumÃ©ro de retour' })
   @ApiResponse({ status: 200, description: 'DÃ©tails de la demande de retour' })
-  async getReturnByNumber(@Param('returnNumber') returnNumber: string) {
-    return this.returnsService.getReturnByNumber(returnNumber);
+  async getReturnByNumber(@Param('returnNumber') returnNumber: string, @Request() req: any) {
+    const storeId = getScopedStoreId(req.user);
+    return this.returnsService.getReturnByNumber(returnNumber, storeId);
   }
 
   @Patch(':id/status')
@@ -142,8 +147,9 @@ export class ReturnsController {
   @ApiOperation({ summary: 'Remettre les articles en stock' })
   @ApiParam({ name: 'id', description: 'ID de la demande de retour' })
   @ApiResponse({ status: 200, description: 'Articles remis en stock' })
-  async restockItems(@Param('id', ParseIntPipe) id: number) {
-    return this.returnsService.restockItems(id);
+  async restockItems(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+    const storeId = getScopedStoreId(req.user);
+    return this.returnsService.restockItems(id, storeId);
   }
 
   @Patch(':id/tracking')
@@ -154,8 +160,10 @@ export class ReturnsController {
     @Param('id', ParseIntPipe) id: number,
     @Body('trackingNumber') trackingNumber: string,
     @Body('carrier') carrier: string,
+    @Request() req: any,
   ) {
-    return this.returnsService.addTrackingInfo(id, trackingNumber, carrier);
+    const storeId = getScopedStoreId(req.user);
+    return this.returnsService.addTrackingInfo(id, trackingNumber, carrier, storeId);
   }
 
   // ============ STORE CREDITS ============
@@ -171,15 +179,17 @@ export class ReturnsController {
   @ApiOperation({ summary: 'Lister les avoirs' })
   @ApiResponse({ status: 200, description: 'Liste des avoirs' })
   async getStoreCredits(@Query() query: StoreCreditQueryDto, @Request() req: any) {
-    return this.returnsService.getStoreCredits(query, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.returnsService.getStoreCredits(query, req.user.tenantId, storeId);
   }
 
   @Get('credits/code/:creditCode')
   @ApiOperation({ summary: 'Obtenir un avoir par code' })
   @ApiParam({ name: 'creditCode', description: 'Code de l\'avoir' })
   @ApiResponse({ status: 200, description: 'DÃ©tails de l\'avoir' })
-  async getStoreCreditByCode(@Param('creditCode') creditCode: string) {
-    return this.returnsService.getStoreCreditByCode(creditCode);
+  async getStoreCreditByCode(@Param('creditCode') creditCode: string, @Request() req: any) {
+    const storeId = getScopedStoreId(req.user);
+    return this.returnsService.getStoreCreditByCode(creditCode, storeId);
   }
 
   @Get('credits/customer/:customerId')
@@ -190,14 +200,16 @@ export class ReturnsController {
     @Param('customerId', ParseIntPipe) customerId: number,
     @Request() req: any,
   ) {
-    return this.returnsService.getCustomerCredits(customerId, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.returnsService.getCustomerCredits(customerId, req.user.tenantId, storeId);
   }
 
   @Post('credits/use')
   @ApiOperation({ summary: 'Utiliser un avoir' })
   @ApiResponse({ status: 200, description: 'Avoir utilisÃ©' })
-  async useStoreCredit(@Body() dto: UseStoreCreditDto) {
-    return this.returnsService.useStoreCredit(dto);
+  async useStoreCredit(@Body() dto: UseStoreCreditDto, @Request() req: any) {
+    const storeId = getScopedStoreId(req.user);
+    return this.returnsService.useStoreCredit(dto, storeId);
   }
 
   @Post('credits/:id/cancel')
@@ -207,8 +219,10 @@ export class ReturnsController {
   async cancelStoreCredit(
     @Param('id', ParseIntPipe) id: number,
     @Body('reason') reason: string,
+    @Request() req: any,
   ) {
-    return this.returnsService.cancelStoreCredit(id, reason);
+    const storeId = getScopedStoreId(req.user);
+    return this.returnsService.cancelStoreCredit(id, reason, storeId);
   }
 
   // ============ RETURN POLICIES ============

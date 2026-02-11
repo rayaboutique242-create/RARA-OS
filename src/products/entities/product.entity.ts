@@ -15,6 +15,9 @@ export class Product {
   @Column({ name: 'tenant_id' })
   tenantId: string;
 
+  @Column({ name: 'store_id', nullable: true })
+  storeId: string;
+
   @Column({ length: 100 })
   name: string;
 

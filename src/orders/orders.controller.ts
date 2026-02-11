@@ -23,6 +23,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { CurrentTenant } from '../common/decorators/current-tenant.decorator';
 import { Role } from '../common/constants/roles';
 import { OrderStatus } from './entities/order.entity';
+import { getScopedStoreId } from '../common/utils/store-scope';
 
 @ApiTags('Orders')
 @ApiBearerAuth('JWT-auth')
@@ -39,9 +40,10 @@ export class OrdersController {
   create(
     @Body() createOrderDto: CreateOrderDto,
     @CurrentTenant() tenantId: string,
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: { id: string; role?: string; storeId?: string },
   ) {
-    return this.ordersService.create(createOrderDto, tenantId, userId);
+    const storeId = getScopedStoreId(user);
+    return this.ordersService.create(createOrderDto, tenantId, user.id, storeId);
   }
 
   @Get()
@@ -50,8 +52,10 @@ export class OrdersController {
   findAll(
     @CurrentTenant() tenantId: string,
     @Query() query: QueryOrderDto,
+    @CurrentUser() user: { role?: string; storeId?: string },
   ) {
-    return this.ordersService.findAll(tenantId, query);
+    const storeId = getScopedStoreId(user);
+    return this.ordersService.findAll(tenantId, query, storeId);
   }
 
   @Get('stats')
@@ -64,8 +68,10 @@ export class OrdersController {
     @CurrentTenant() tenantId: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
+    @CurrentUser() user?: { role?: string; storeId?: string },
   ) {
-    return this.ordersService.getStats(tenantId, dateFrom, dateTo);
+    const storeId = getScopedStoreId(user);
+    return this.ordersService.getStats(tenantId, dateFrom, dateTo, storeId);
   }
 
   @Get('number/:orderNumber')
@@ -76,8 +82,10 @@ export class OrdersController {
   findByOrderNumber(
     @Param('orderNumber') orderNumber: string,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
   ) {
-    return this.ordersService.findByOrderNumber(orderNumber, tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.ordersService.findByOrderNumber(orderNumber, tenantId, storeId);
   }
 
   @Get(':id')
@@ -88,8 +96,10 @@ export class OrdersController {
   findOne(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
   ) {
-    return this.ordersService.findOne(id, tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.ordersService.findOne(id, tenantId, storeId);
   }
 
   @Patch(':id')
@@ -101,8 +111,10 @@ export class OrdersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateOrderDto: UpdateOrderDto,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
   ) {
-    return this.ordersService.update(id, updateOrderDto, tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.ordersService.update(id, updateOrderDto, tenantId, storeId);
   }
 
   @Patch(':id/status')
@@ -114,8 +126,10 @@ export class OrdersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body('status') status: OrderStatus,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
   ) {
-    return this.ordersService.updateStatus(id, status, tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.ordersService.updateStatus(id, status, tenantId, storeId);
   }
 
   @Post(':id/payment')
@@ -127,8 +141,10 @@ export class OrdersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() paymentDto: AddPaymentDto,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
   ) {
-    return this.ordersService.addPayment(id, paymentDto, tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.ordersService.addPayment(id, paymentDto, tenantId, storeId);
   }
 
   @Post(':id/cancel')
@@ -140,7 +156,9 @@ export class OrdersController {
   cancel(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: { role?: string; storeId?: string },
   ) {
-    return this.ordersService.cancel(id, tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.ordersService.cancel(id, tenantId, storeId);
   }
 }

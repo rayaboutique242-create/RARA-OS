@@ -18,6 +18,7 @@ import { PaymentsService } from './payments.service';
 import { CreatePaymentMethodDto, UpdatePaymentMethodDto, PaymentMethodQueryDto } from './dto/create-payment-method.dto';
 import { CreateTransactionDto, ProcessTransactionDto, TransactionQueryDto } from './dto/create-transaction.dto';
 import { CreateRefundDto, ApproveRefundDto, RejectRefundDto, ProcessRefundDto, RefundQueryDto } from './dto/create-refund.dto';
+import { getScopedStoreId } from '../common/utils/store-scope';
 
 @ApiTags('Payments')
 @ApiBearerAuth()
@@ -75,26 +76,30 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Créer une transaction' })
   @ApiResponse({ status: 201, description: 'Transaction créée' })
   createTransaction(@Body() dto: CreateTransactionDto, @Request() req) {
+    const storeId = getScopedStoreId(req.user);
     const userName = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || req.user.email;
-    return this.paymentsService.createTransaction(dto, req.user.tenantId, req.user.sub, userName);
+    return this.paymentsService.createTransaction(dto, req.user.tenantId, req.user.sub, userName, storeId);
   }
 
   @Get('transactions')
   @ApiOperation({ summary: 'Lister les transactions' })
   findAllTransactions(@Query() query: TransactionQueryDto, @Request() req) {
-    return this.paymentsService.findAllTransactions(query, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.paymentsService.findAllTransactions(query, req.user.tenantId, storeId);
   }
 
   @Get('transactions/:id')
   @ApiOperation({ summary: 'Détails d\'une transaction' })
   findTransactionById(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
-    return this.paymentsService.findTransactionById(id, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.paymentsService.findTransactionById(id, req.user.tenantId, storeId);
   }
 
   @Get('transactions/number/:number')
   @ApiOperation({ summary: 'Transaction par numéro' })
   findTransactionByNumber(@Param('number') number: string, @Request() req) {
-    return this.paymentsService.findTransactionByNumber(number, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.paymentsService.findTransactionByNumber(number, req.user.tenantId, storeId);
   }
 
   @Patch('transactions/:id/complete')
@@ -104,8 +109,9 @@ export class PaymentsController {
     @Body() dto: ProcessTransactionDto,
     @Request() req,
   ) {
+    const storeId = getScopedStoreId(req.user);
     const userName = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || req.user.email;
-    return this.paymentsService.completeTransaction(id, dto, req.user.tenantId, req.user.sub, userName);
+    return this.paymentsService.completeTransaction(id, dto, req.user.tenantId, req.user.sub, userName, storeId);
   }
 
   @Patch('transactions/:id/fail')
@@ -115,7 +121,8 @@ export class PaymentsController {
     @Body('reason') reason: string,
     @Request() req,
   ) {
-    return this.paymentsService.failTransaction(id, reason, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.paymentsService.failTransaction(id, reason, req.user.tenantId, storeId);
   }
 
   @Patch('transactions/:id/cancel')
@@ -125,19 +132,22 @@ export class PaymentsController {
     @Body('reason') reason: string,
     @Request() req,
   ) {
-    return this.paymentsService.cancelTransaction(id, reason, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.paymentsService.cancelTransaction(id, reason, req.user.tenantId, storeId);
   }
 
   @Get('orders/:orderId/transactions')
   @ApiOperation({ summary: 'Transactions d\'une commande' })
   getTransactionsByOrder(@Param('orderId', ParseUUIDPipe) orderId: string, @Request() req) {
-    return this.paymentsService.getTransactionsByOrder(orderId, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.paymentsService.getTransactionsByOrder(orderId, req.user.tenantId, storeId);
   }
 
   @Get('customers/:customerId/transactions')
   @ApiOperation({ summary: 'Transactions d\'un client' })
   getTransactionsByCustomer(@Param('customerId', ParseUUIDPipe) customerId: string, @Request() req) {
-    return this.paymentsService.getTransactionsByCustomer(customerId, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.paymentsService.getTransactionsByCustomer(customerId, req.user.tenantId, storeId);
   }
 
   // ==================== REFUNDS ====================
@@ -146,26 +156,30 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Créer une demande de remboursement' })
   @ApiResponse({ status: 201, description: 'Demande créée' })
   createRefund(@Body() dto: CreateRefundDto, @Request() req) {
+    const storeId = getScopedStoreId(req.user);
     const userName = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || req.user.email;
-    return this.paymentsService.createRefund(dto, req.user.tenantId, req.user.sub, userName);
+    return this.paymentsService.createRefund(dto, req.user.tenantId, req.user.sub, userName, storeId);
   }
 
   @Get('refunds')
   @ApiOperation({ summary: 'Lister les remboursements' })
   findAllRefunds(@Query() query: RefundQueryDto, @Request() req) {
-    return this.paymentsService.findAllRefunds(query, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.paymentsService.findAllRefunds(query, req.user.tenantId, storeId);
   }
 
   @Get('refunds/pending')
   @ApiOperation({ summary: 'Remboursements en attente' })
   getPendingRefunds(@Request() req) {
-    return this.paymentsService.getPendingRefunds(req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.paymentsService.getPendingRefunds(req.user.tenantId, storeId);
   }
 
   @Get('refunds/:id')
   @ApiOperation({ summary: 'Détails d\'un remboursement' })
   findRefundById(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
-    return this.paymentsService.findRefundById(id, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.paymentsService.findRefundById(id, req.user.tenantId, storeId);
   }
 
   @Patch('refunds/:id/approve')
@@ -175,8 +189,9 @@ export class PaymentsController {
     @Body() dto: ApproveRefundDto,
     @Request() req,
   ) {
+    const storeId = getScopedStoreId(req.user);
     const userName = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || req.user.email;
-    return this.paymentsService.approveRefund(id, dto, req.user.tenantId, req.user.sub, userName);
+    return this.paymentsService.approveRefund(id, dto, req.user.tenantId, req.user.sub, userName, storeId);
   }
 
   @Patch('refunds/:id/reject')
@@ -186,8 +201,9 @@ export class PaymentsController {
     @Body() dto: RejectRefundDto,
     @Request() req,
   ) {
+    const storeId = getScopedStoreId(req.user);
     const userName = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || req.user.email;
-    return this.paymentsService.rejectRefund(id, dto, req.user.tenantId, req.user.sub, userName);
+    return this.paymentsService.rejectRefund(id, dto, req.user.tenantId, req.user.sub, userName, storeId);
   }
 
   @Patch('refunds/:id/process')
@@ -197,8 +213,9 @@ export class PaymentsController {
     @Body() dto: ProcessRefundDto,
     @Request() req,
   ) {
+    const storeId = getScopedStoreId(req.user);
     const userName = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || req.user.email;
-    return this.paymentsService.processRefund(id, dto, req.user.tenantId, req.user.sub, userName);
+    return this.paymentsService.processRefund(id, dto, req.user.tenantId, req.user.sub, userName, storeId);
   }
 
   // ==================== DASHBOARD & STATS ====================
@@ -206,7 +223,8 @@ export class PaymentsController {
   @Get('dashboard')
   @ApiOperation({ summary: 'Tableau de bord des paiements' })
   getPaymentsDashboard(@Request() req) {
-    return this.paymentsService.getPaymentsDashboard(req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.paymentsService.getPaymentsDashboard(req.user.tenantId, storeId);
   }
 
   @Get('stats')
@@ -216,8 +234,9 @@ export class PaymentsController {
     @Query('endDate') endDate: string,
     @Request() req,
   ) {
+    const storeId = getScopedStoreId(req.user);
     const start = startDate ? new Date(startDate) : new Date(new Date().setDate(new Date().getDate() - 30));
     const end = endDate ? new Date(endDate) : new Date();
-    return this.paymentsService.getTransactionStats(req.user.tenantId, start, end);
+    return this.paymentsService.getTransactionStats(req.user.tenantId, start, end, storeId);
   }
 }

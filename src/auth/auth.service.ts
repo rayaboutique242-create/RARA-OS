@@ -21,6 +21,7 @@ import { RegisterDto } from './dto/register.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { Role } from '../common/constants/roles';
 import { Tenant } from '../tenants/entities/tenant.entity';
+import { UserTenantsService } from '../user-tenants/user-tenants.service';
 
 export interface RequestMeta {
   ipAddress?: string;
@@ -51,6 +52,7 @@ export class AuthService {
     private configService: ConfigService,
     private sessionService: SessionService,
     private emailService: EmailService,
+    private userTenantsService: UserTenantsService,
     @InjectRepository(Tenant) private tenantRepository: Repository<Tenant>,
   ) {}
 
@@ -98,6 +100,8 @@ export class AuthService {
 
     await this.usersService.updateLastLogin(user.id);
 
+    const storeId = await this.resolveStoreId(user.id, user.tenantId);
+
     // Generate tokens
     const tokens = await this.generateTokens(user);
 
@@ -115,6 +119,8 @@ export class AuthService {
       this.hashToken(tokens.refreshToken),
     );
 
+    const storeId = await this.resolveStoreId(user.id, user.tenantId);
+
     return {
       ...tokens,
       sessionId: session.id,
@@ -124,6 +130,7 @@ export class AuthService {
         username: user.username,
         role: user.role,
         tenantId: user.tenantId,
+        storeId,
         firstName: user.firstName,
         lastName: user.lastName,
       },
@@ -166,6 +173,8 @@ export class AuthService {
 
     const tokens = await this.generateTokens(user);
 
+    const storeId = await this.resolveStoreId(user.id, user.tenantId);
+
     const session = await this.sessionService.createSession(
       user.id,
       user.tenantId,
@@ -190,6 +199,7 @@ export class AuthService {
         username: user.username,
         role: user.role,
         tenantId: user.tenantId,
+        storeId,
       },
     };
   }
@@ -275,6 +285,8 @@ export class AuthService {
     // 7. Generate tokens
     const tokens = await this.generateTokens(user);
 
+    const storeId = await this.resolveStoreId(user.id, user.tenantId);
+
     const session = await this.sessionService.createSession(
       user.id,
       user.tenantId,
@@ -304,6 +316,7 @@ export class AuthService {
         username: user.username,
         role: user.role,
         tenantId: user.tenantId,
+        storeId,
       },
       message: 'Bootstrap réussi ! Vous êtes maintenant administrateur de votre entreprise.',
     };
@@ -581,6 +594,7 @@ export class AuthService {
         username: user.username,
         role: user.role,
         tenantId: user.tenantId,
+        storeId,
         firstName: user.firstName,
         lastName: user.lastName,
         avatarUrl: user.avatarUrl,
@@ -617,11 +631,13 @@ export class AuthService {
   }
 
   private async generateAccessToken(user: any): Promise<string> {
+    const storeId = await this.resolveStoreId(user.id, user.tenantId);
     const payload = {
       sub: user.id,
       email: user.email,
       role: user.role,
       tenantId: user.tenantId,
+      storeId,
     };
 
     return this.jwtService.signAsync(payload, {
@@ -630,11 +646,13 @@ export class AuthService {
   }
 
   private async generateRefreshToken(user: any): Promise<string> {
+    const storeId = await this.resolveStoreId(user.id, user.tenantId);
     const payload = {
       sub: user.id,
       email: user.email,
       role: user.role,
       tenantId: user.tenantId,
+      storeId,
       type: 'refresh',
     };
 
@@ -646,5 +664,14 @@ export class AuthService {
 
   private hashToken(token: string): string {
     return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
+  private async resolveStoreId(userId: string, tenantId: string): Promise<string | undefined> {
+    if (!userId || !tenantId) {
+      return undefined;
+    }
+
+    const membership = await this.userTenantsService.findMembership(userId, tenantId);
+    return membership?.storeId || undefined;
   }
 }

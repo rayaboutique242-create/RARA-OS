@@ -31,6 +31,7 @@ import { CreateSalesGoalDto, UpdateSalesGoalDto } from './dto/create-sales-goal.
 import { CreateCustomReportDto, UpdateCustomReportDto } from './dto/create-custom-report.dto';
 import { SnapshotType } from './entities/analytics-snapshot.entity';
 import { CacheShort, CacheMedium, CacheKeys } from '../cache/cache.decorators';
+import { getScopedStoreId } from '../common/utils/store-scope';
 
 @ApiTags('Analytics')
 @ApiBearerAuth()
@@ -46,7 +47,8 @@ export class AnalyticsController {
   @ApiOperation({ summary: 'Get dashboard overview with key metrics' })
   @ApiResponse({ status: 200, description: 'Dashboard overview retrieved' })
   getDashboard(@CurrentUser() user: any) {
-    return this.analyticsService.getDashboardOverview(user.tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.analyticsService.getDashboardOverview(user.tenantId, storeId);
   }
 
   // ==================== SALES ANALYTICS ====================
@@ -56,7 +58,8 @@ export class AnalyticsController {
   @ApiOperation({ summary: 'Get sales analytics' })
   @ApiResponse({ status: 200, description: 'Sales analytics retrieved' })
   getSalesAnalytics(@Query() query: AnalyticsQueryDto, @CurrentUser() user: any) {
-    return this.analyticsService.getSalesAnalytics(query, user.tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.analyticsService.getSalesAnalytics(query, user.tenantId, storeId);
   }
 
   // ==================== PRODUCT ANALYTICS ====================
@@ -66,7 +69,8 @@ export class AnalyticsController {
   @ApiOperation({ summary: 'Get top selling products' })
   @ApiResponse({ status: 200, description: 'Top products retrieved' })
   getTopProducts(@Query() query: TopPerformersQueryDto, @CurrentUser() user: any) {
-    return this.analyticsService.getTopProducts(query, user.tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.analyticsService.getTopProducts(query, user.tenantId, storeId);
   }
 
   @Get('categories/top')
@@ -74,7 +78,8 @@ export class AnalyticsController {
   @ApiOperation({ summary: 'Get top categories' })
   @ApiResponse({ status: 200, description: 'Top categories retrieved' })
   getTopCategories(@Query() query: TopPerformersQueryDto, @CurrentUser() user: any) {
-    return this.analyticsService.getTopCategories(query, user.tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.analyticsService.getTopCategories(query, user.tenantId, storeId);
   }
 
   @Get('customers/top')
@@ -82,7 +87,8 @@ export class AnalyticsController {
   @ApiOperation({ summary: 'Get top customers by spending' })
   @ApiResponse({ status: 200, description: 'Top customers retrieved' })
   getTopCustomers(@Query() query: TopPerformersQueryDto, @CurrentUser() user: any) {
-    return this.analyticsService.getTopCustomers(query, user.tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.analyticsService.getTopCustomers(query, user.tenantId, storeId);
   }
 
   // ==================== INVENTORY ANALYTICS ====================
@@ -92,7 +98,8 @@ export class AnalyticsController {
   @ApiOperation({ summary: 'Get inventory analytics' })
   @ApiResponse({ status: 200, description: 'Inventory analytics retrieved' })
   getInventoryAnalytics(@CurrentUser() user: any) {
-    return this.analyticsService.getInventoryAnalytics(user.tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.analyticsService.getInventoryAnalytics(user.tenantId, storeId);
   }
 
   // ==================== CUSTOMER ANALYTICS ====================
@@ -102,7 +109,8 @@ export class AnalyticsController {
   @ApiOperation({ summary: 'Get customer analytics' })
   @ApiResponse({ status: 200, description: 'Customer analytics retrieved' })
   getCustomerAnalytics(@Query() query: AnalyticsQueryDto, @CurrentUser() user: any) {
-    return this.analyticsService.getCustomerAnalytics(query, user.tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.analyticsService.getCustomerAnalytics(query, user.tenantId, storeId);
   }
 
   // ==================== COMPARISONS & TRENDS ====================
@@ -112,7 +120,8 @@ export class AnalyticsController {
   @ApiOperation({ summary: 'Compare metrics between two periods' })
   @ApiResponse({ status: 200, description: 'Period comparison retrieved' })
   getComparison(@Query() query: ComparisonQueryDto, @CurrentUser() user: any) {
-    return this.analyticsService.getComparison(query, user.tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.analyticsService.getComparison(query, user.tenantId, storeId);
   }
 
   @Get('trends')
@@ -120,7 +129,8 @@ export class AnalyticsController {
   @ApiOperation({ summary: 'Get trends over time' })
   @ApiResponse({ status: 200, description: 'Trends retrieved' })
   getTrends(@Query() query: TrendQueryDto, @CurrentUser() user: any) {
-    return this.analyticsService.getTrends(query, user.tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.analyticsService.getTrends(query, user.tenantId, storeId);
   }
 
   @Get('forecast')
@@ -128,7 +138,8 @@ export class AnalyticsController {
   @ApiOperation({ summary: 'Get sales forecast' })
   @ApiResponse({ status: 200, description: 'Forecast retrieved' })
   getForecast(@Query() query: AnalyticsQueryDto, @CurrentUser() user: any) {
-    return this.analyticsService.getForecast(query, user.tenantId);
+    const storeId = getScopedStoreId(user);
+    return this.analyticsService.getForecast(query, user.tenantId, storeId);
   }
 
   // ==================== SALES GOALS ====================

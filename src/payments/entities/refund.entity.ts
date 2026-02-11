@@ -119,6 +119,9 @@ export class Refund {
   @Column({ type: 'varchar', length: 50 })
   tenantId: string;
 
+  @Column({ name: 'storeId', type: 'uuid', nullable: true })
+  storeId: string;
+
   @Column({ type: 'text', nullable: true })
   notes: string;
 

@@ -158,6 +158,9 @@ export class ReturnRequest {
   @Column({ type: 'varchar', length: 50, nullable: true })
   tenantId: string | null;
 
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  storeId: string | null;
+
   @Column({ type: 'text', nullable: true })
   metadata: string | null;
 

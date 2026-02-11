@@ -7,6 +7,7 @@ import { ReturnRequest } from './entities/return-request.entity';
 import { ReturnItem } from './entities/return-item.entity';
 import { StoreCredit } from './entities/store-credit.entity';
 import { ReturnPolicy } from './entities/return-policy.entity';
+import { Order } from '../orders/entities/order.entity';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { ReturnPolicy } from './entities/return-policy.entity';
       ReturnItem,
       StoreCredit,
       ReturnPolicy,
+      Order,
     ]),
   ],
   controllers: [ReturnsController],

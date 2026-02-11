@@ -43,6 +43,9 @@ export class Order {
   @Column({ name: 'tenant_id' })
   tenantId: string;
 
+  @Column({ name: 'store_id', nullable: true })
+  storeId: string;
+
   @Column({ name: 'order_number', unique: true })
   orderNumber: string;
 

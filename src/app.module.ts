@@ -62,6 +62,9 @@ import { ErrorLog } from './monitoring/entities/error-log.entity';
 import { Session } from './auth/entities/session.entity';
 // NEW: Support System
 import { SupportModule } from './support/support.module';
+// NEW: Generic Data Sync
+import { SyncModule } from './sync/sync.module';
+import { TenantData } from './sync/entities/tenant-data.entity';
 // Entities imports
 import { ServiceOffering } from './appointments/entities/service-offering.entity';
 import { TimeSlot } from './appointments/entities/time-slot.entity';
@@ -149,6 +152,9 @@ import { UserTenant } from './user-tenants/entities/user-tenant.entity';
 import { validate } from './config/env.validation';
 // Migrations
 import { InitialSchema1738800000000 } from './database/migrations/1738800000000-InitialSchema';
+import { AddStoreIdToCustomersProducts1739200000000 } from './database/migrations/1739200000000-AddStoreIdToCustomersProducts';
+import { AddStoreIdToPaymentsReturns1739200000001 } from './database/migrations/1739200000001-AddStoreIdToPaymentsReturns';
+import { BackfillStoreIdCustomersProducts1739200000002 } from './database/migrations/1739200000002-BackfillStoreIdCustomersProducts';
 
 @Module({
   imports: [
@@ -214,10 +220,16 @@ import { InitialSchema1738800000000 } from './database/migrations/1738800000000-
             Session,
             SupportTicket, TicketResponse,
             AlertRule, AlertEvent, SystemMetric, ErrorLog,
+            TenantData,
           ],
           synchronize,
           migrationsRun,
-          migrations: [InitialSchema1738800000000],
+          migrations: [
+            InitialSchema1738800000000,
+            AddStoreIdToCustomersProducts1739200000000,
+            AddStoreIdToPaymentsReturns1739200000001,
+            BackfillStoreIdCustomersProducts1739200000002,
+          ],
           logging: nodeEnv === 'development',
           cache: { duration: 30000 },
         };
@@ -297,8 +309,10 @@ import { InitialSchema1738800000000 } from './database/migrations/1738800000000-
     MonitoringModule,
     // NEW: User Support System
     SupportModule,
-    // TenantGuard (APP_GUARD) needs Tenant repository in root scope
-    TypeOrmModule.forFeature([Tenant]),
+    // NEW: Generic Data Sync (all collections)
+    SyncModule,
+    // TenantGuard (APP_GUARD) needs Tenant + UserTenant repositories in root scope
+    TypeOrmModule.forFeature([Tenant, UserTenant]),
   ],
   controllers: [AppController],
   providers: [

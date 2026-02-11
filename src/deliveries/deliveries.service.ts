@@ -37,10 +37,13 @@ export class DeliveriesService {
     createDeliveryDto: CreateDeliveryDto,
     tenantId: string,
     userId: string,
+    storeId?: string,
   ): Promise<Delivery> {
     // VÃ©rifier que la commande existe
     const order = await this.orderRepository.findOne({
-      where: { id: createDeliveryDto.orderId, tenantId },
+      where: storeId
+        ? { id: createDeliveryDto.orderId, tenantId, storeId }
+        : { id: createDeliveryDto.orderId, tenantId },
     });
 
     if (!order) {
@@ -80,7 +83,7 @@ export class DeliveriesService {
     return saved;
   }
 
-  async findAll(tenantId: string, query: QueryDeliveryDto) {
+  async findAll(tenantId: string, query: QueryDeliveryDto, storeId?: string) {
     const {
       search,
       status,
@@ -118,6 +121,10 @@ export class DeliveriesService {
       .createQueryBuilder('delivery')
       .leftJoinAndSelect('delivery.order', 'order')
       .where('delivery.tenantId = :tenantId', { tenantId });
+
+    if (storeId) {
+      queryBuilder.andWhere('order.store_id = :storeId', { storeId });
+    }
 
     if (status) {
       queryBuilder.andWhere('delivery.status = :status', { status });
@@ -171,11 +178,18 @@ export class DeliveriesService {
     };
   }
 
-  async findOne(id: string, tenantId: string): Promise<Delivery> {
-    const delivery = await this.deliveryRepository.findOne({
-      where: { id, tenantId },
-      relations: ['order'],
-    });
+  async findOne(id: string, tenantId: string, storeId?: string): Promise<Delivery> {
+    const queryBuilder = this.deliveryRepository
+      .createQueryBuilder('delivery')
+      .leftJoinAndSelect('delivery.order', 'order')
+      .where('delivery.id = :id', { id })
+      .andWhere('delivery.tenantId = :tenantId', { tenantId });
+
+    if (storeId) {
+      queryBuilder.andWhere('order.store_id = :storeId', { storeId });
+    }
+
+    const delivery = await queryBuilder.getOne();
 
     if (!delivery) {
       throw new NotFoundException('Livraison non trouvÃ©e');
@@ -184,11 +198,18 @@ export class DeliveriesService {
     return delivery;
   }
 
-  async findByTracking(trackingNumber: string, tenantId: string): Promise<Delivery> {
-    const delivery = await this.deliveryRepository.findOne({
-      where: { trackingNumber, tenantId },
-      relations: ['order'],
-    });
+  async findByTracking(trackingNumber: string, tenantId: string, storeId?: string): Promise<Delivery> {
+    const queryBuilder = this.deliveryRepository
+      .createQueryBuilder('delivery')
+      .leftJoinAndSelect('delivery.order', 'order')
+      .where('delivery.trackingNumber = :trackingNumber', { trackingNumber })
+      .andWhere('delivery.tenantId = :tenantId', { tenantId });
+
+    if (storeId) {
+      queryBuilder.andWhere('order.store_id = :storeId', { storeId });
+    }
+
+    const delivery = await queryBuilder.getOne();
 
     if (!delivery) {
       throw new NotFoundException('Livraison non trouvÃ©e');
@@ -197,11 +218,18 @@ export class DeliveriesService {
     return delivery;
   }
 
-  async findByOrder(orderId: string, tenantId: string): Promise<Delivery> {
-    const delivery = await this.deliveryRepository.findOne({
-      where: { orderId, tenantId },
-      relations: ['order'],
-    });
+  async findByOrder(orderId: string, tenantId: string, storeId?: string): Promise<Delivery> {
+    const queryBuilder = this.deliveryRepository
+      .createQueryBuilder('delivery')
+      .leftJoinAndSelect('delivery.order', 'order')
+      .where('delivery.orderId = :orderId', { orderId })
+      .andWhere('delivery.tenantId = :tenantId', { tenantId });
+
+    if (storeId) {
+      queryBuilder.andWhere('order.store_id = :storeId', { storeId });
+    }
+
+    const delivery = await queryBuilder.getOne();
 
     if (!delivery) {
       throw new NotFoundException('Aucune livraison pour cette commande');
@@ -214,8 +242,9 @@ export class DeliveriesService {
     id: string,
     updateDeliveryDto: UpdateDeliveryDto,
     tenantId: string,
+    storeId?: string,
   ): Promise<Delivery> {
-    const delivery = await this.findOne(id, tenantId);
+    const delivery = await this.findOne(id, tenantId, storeId);
 
     Object.assign(delivery, updateDeliveryDto);
     return this.deliveryRepository.save(delivery);
@@ -225,8 +254,9 @@ export class DeliveriesService {
     id: string,
     assignDto: AssignDeliveryDto,
     tenantId: string,
+    storeId?: string,
   ): Promise<Delivery> {
-    const delivery = await this.findOne(id, tenantId);
+    const delivery = await this.findOne(id, tenantId, storeId);
 
     if (delivery.status !== DeliveryStatus.PENDING) {
       throw new BadRequestException('Cette livraison est dÃ©jÃ  assignÃ©e ou en cours');
@@ -252,8 +282,9 @@ export class DeliveriesService {
     id: string,
     statusDto: UpdateDeliveryStatusDto,
     tenantId: string,
+    storeId?: string,
   ): Promise<Delivery> {
-    const delivery = await this.findOne(id, tenantId);
+    const delivery = await this.findOne(id, tenantId, storeId);
 
     // Valider les transitions de statut
     this.validateStatusTransition(delivery.status, statusDto.status);
@@ -327,8 +358,8 @@ export class DeliveriesService {
     }
   }
 
-  async cancel(id: string, tenantId: string, reason?: string): Promise<Delivery> {
-    const delivery = await this.findOne(id, tenantId);
+  async cancel(id: string, tenantId: string, reason?: string, storeId?: string): Promise<Delivery> {
+    const delivery = await this.findOne(id, tenantId, storeId);
 
     if ([DeliveryStatus.DELIVERED, DeliveryStatus.CANCELLED].includes(delivery.status)) {
       throw new BadRequestException('Cette livraison ne peut pas Ãªtre annulÃ©e');
@@ -345,10 +376,18 @@ export class DeliveriesService {
     return this.deliveryRepository.save(delivery);
   }
 
-  async getDeliveryPersonStats(deliveryPersonId: string, tenantId: string) {
-    const deliveries = await this.deliveryRepository.find({
-      where: { deliveryPersonId, tenantId },
-    });
+  async getDeliveryPersonStats(deliveryPersonId: string, tenantId: string, storeId?: string) {
+    const queryBuilder = this.deliveryRepository
+      .createQueryBuilder('delivery')
+      .leftJoinAndSelect('delivery.order', 'order')
+      .where('delivery.deliveryPersonId = :deliveryPersonId', { deliveryPersonId })
+      .andWhere('delivery.tenantId = :tenantId', { tenantId });
+
+    if (storeId) {
+      queryBuilder.andWhere('order.store_id = :storeId', { storeId });
+    }
+
+    const deliveries = await queryBuilder.getMany();
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -371,10 +410,15 @@ export class DeliveriesService {
     };
   }
 
-  async getStats(tenantId: string, dateFrom?: string, dateTo?: string) {
+  async getStats(tenantId: string, dateFrom?: string, dateTo?: string, storeId?: string) {
     const queryBuilder = this.deliveryRepository
       .createQueryBuilder('delivery')
+      .leftJoin('delivery.order', 'order')
       .where('delivery.tenantId = :tenantId', { tenantId });
+
+    if (storeId) {
+      queryBuilder.andWhere('order.store_id = :storeId', { storeId });
+    }
 
     if (dateFrom && dateTo) {
       queryBuilder.andWhere('delivery.createdAt BETWEEN :dateFrom AND :dateTo', {
@@ -423,28 +467,38 @@ export class DeliveriesService {
     };
   }
 
-  async getTodayScheduled(tenantId: string) {
+  async getTodayScheduled(tenantId: string, storeId?: string) {
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
 
-    return this.deliveryRepository
+    const queryBuilder = this.deliveryRepository
       .createQueryBuilder('delivery')
       .leftJoinAndSelect('delivery.order', 'order')
       .where('delivery.tenantId = :tenantId', { tenantId })
       .andWhere('DATE(delivery.scheduledDate) = :today', { today: todayStr })
       .andWhere('delivery.status NOT IN (:...excludedStatuses)', {
         excludedStatuses: [DeliveryStatus.DELIVERED, DeliveryStatus.CANCELLED],
-      })
-      .orderBy('delivery.scheduledTimeSlot', 'ASC')
-      .getMany();
+      });
+
+    if (storeId) {
+      queryBuilder.andWhere('order.store_id = :storeId', { storeId });
+    }
+
+    return queryBuilder.orderBy('delivery.scheduledTimeSlot', 'ASC').getMany();
   }
 
-  async getPendingAssignment(tenantId: string) {
-    return this.deliveryRepository.find({
-      where: { tenantId, status: DeliveryStatus.PENDING },
-      relations: ['order'],
-      order: { priority: 'DESC', createdAt: 'ASC' },
-    });
+  async getPendingAssignment(tenantId: string, storeId?: string) {
+    const queryBuilder = this.deliveryRepository
+      .createQueryBuilder('delivery')
+      .leftJoinAndSelect('delivery.order', 'order')
+      .where('delivery.tenantId = :tenantId', { tenantId })
+      .andWhere('delivery.status = :status', { status: DeliveryStatus.PENDING });
+
+    if (storeId) {
+      queryBuilder.andWhere('order.store_id = :storeId', { storeId });
+    }
+
+    return queryBuilder.orderBy('delivery.priority', 'DESC').addOrderBy('delivery.createdAt', 'ASC').getMany();
   }
 }
 

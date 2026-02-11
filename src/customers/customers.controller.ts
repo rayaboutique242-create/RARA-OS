@@ -28,6 +28,7 @@ import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { QueryCustomerDto } from './dto/query-customer.dto';
 import { AddLoyaltyPointsDto, RedeemPointsDto, UpdateLoyaltyTierDto } from './dto/loyalty.dto';
+import { getScopedStoreId } from '../common/utils/store-scope';
 
 @ApiTags('Customers')
 @ApiBearerAuth()
@@ -43,10 +44,12 @@ export class CustomersController {
   @ApiResponse({ status: 201, description: 'Client créé avec succès' })
   @ApiResponse({ status: 409, description: 'Email ou téléphone déjà utilisé' })
   create(@Body() createCustomerDto: CreateCustomerDto, @Request() req) {
+    const storeId = getScopedStoreId(req.user);
     return this.customersService.create(
       createCustomerDto,
-      req.user.sub,
+      req.user.sub || req.user.id,
       req.user.tenantId,
+      storeId,
     );
   }
 
@@ -54,14 +57,16 @@ export class CustomersController {
   @ApiOperation({ summary: 'Liste des clients avec filtres et pagination' })
   @ApiResponse({ status: 200, description: 'Liste des clients' })
   findAll(@Query() query: QueryCustomerDto, @Request() req) {
-    return this.customersService.findAll(query, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.customersService.findAll(query, req.user.tenantId, storeId);
   }
 
   @Get('stats')
   @ApiOperation({ summary: 'Statistiques globales des clients' })
   @ApiResponse({ status: 200, description: 'Statistiques CRM' })
   getStats(@Request() req) {
-    return this.customersService.getCustomerStats(req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.customersService.getCustomerStats(req.user.tenantId, storeId);
   }
 
   @Get('inactive/:days')
@@ -69,7 +74,8 @@ export class CustomersController {
   @ApiParam({ name: 'days', description: 'Nombre de jours d\'inactivité' })
   @ApiResponse({ status: 200, description: 'Liste des clients inactifs' })
   getInactive(@Param('days') days: string, @Request() req) {
-    return this.customersService.getInactiveCustomers(parseInt(days), req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.customersService.getInactiveCustomers(parseInt(days), req.user.tenantId, storeId);
   }
 
   @Get('birthdays/:month')
@@ -77,7 +83,8 @@ export class CustomersController {
   @ApiParam({ name: 'month', description: 'Mois (1-12)' })
   @ApiResponse({ status: 200, description: 'Liste des clients' })
   getBirthdays(@Param('month') month: string, @Request() req) {
-    return this.customersService.getCustomersByBirthMonth(parseInt(month), req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.customersService.getCustomersByBirthMonth(parseInt(month), req.user.tenantId, storeId);
   }
 
   @Get('code/:customerCode')
@@ -86,21 +93,24 @@ export class CustomersController {
   @ApiResponse({ status: 200, description: 'Client trouvé' })
   @ApiResponse({ status: 404, description: 'Client non trouvé' })
   findByCode(@Param('customerCode') customerCode: string, @Request() req) {
-    return this.customersService.findByCode(customerCode, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.customersService.findByCode(customerCode, req.user.tenantId, storeId);
   }
 
   @Get('email/:email')
   @ApiOperation({ summary: 'Trouver un client par email' })
   @ApiResponse({ status: 200, description: 'Client trouvé ou null' })
   findByEmail(@Param('email') email: string, @Request() req) {
-    return this.customersService.findByEmail(email, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.customersService.findByEmail(email, req.user.tenantId, storeId);
   }
 
   @Get('phone/:phone')
   @ApiOperation({ summary: 'Trouver un client par téléphone' })
   @ApiResponse({ status: 200, description: 'Client trouvé ou null' })
   findByPhone(@Param('phone') phone: string, @Request() req) {
-    return this.customersService.findByPhone(phone, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.customersService.findByPhone(phone, req.user.tenantId, storeId);
   }
 
   @Get(':id')
@@ -109,7 +119,8 @@ export class CustomersController {
   @ApiResponse({ status: 200, description: 'Détails du client' })
   @ApiResponse({ status: 404, description: 'Client non trouvé' })
   findOne(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
-    return this.customersService.findOne(id, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.customersService.findOne(id, req.user.tenantId, storeId);
   }
 
   @Patch(':id')
@@ -122,7 +133,8 @@ export class CustomersController {
     @Body() updateCustomerDto: UpdateCustomerDto,
     @Request() req,
   ) {
-    return this.customersService.update(id, updateCustomerDto, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.customersService.update(id, updateCustomerDto, req.user.tenantId, storeId);
   }
 
   @Delete(':id')
@@ -132,7 +144,8 @@ export class CustomersController {
   @ApiResponse({ status: 204, description: 'Client désactivé' })
   @ApiResponse({ status: 404, description: 'Client non trouvé' })
   remove(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
-    return this.customersService.remove(id, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.customersService.remove(id, req.user.tenantId, storeId);
   }
 
   // ==================== HISTORIQUE ====================
@@ -149,11 +162,13 @@ export class CustomersController {
     @Query('limit') limit: string,
     @Request() req,
   ) {
+    const storeId = getScopedStoreId(req.user);
     return this.customersService.getPurchaseHistory(
       id,
       req.user.tenantId,
       parseInt(page) || 1,
       parseInt(limit) || 10,
+      storeId,
     );
   }
 
@@ -164,7 +179,8 @@ export class CustomersController {
   @ApiParam({ name: 'id', description: 'UUID du client' })
   @ApiResponse({ status: 200, description: 'Détails programme fidélité' })
   getLoyaltyInfo(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
-    return this.customersService.getLoyaltyInfo(id, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.customersService.getLoyaltyInfo(id, req.user.tenantId, storeId);
   }
 
   @Post(':id/loyalty/points')
@@ -177,7 +193,8 @@ export class CustomersController {
     @Body() addPointsDto: AddLoyaltyPointsDto,
     @Request() req,
   ) {
-    return this.customersService.addLoyaltyPoints(id, addPointsDto, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.customersService.addLoyaltyPoints(id, addPointsDto, req.user.tenantId, storeId);
   }
 
   @Post(':id/loyalty/redeem')
@@ -190,7 +207,8 @@ export class CustomersController {
     @Body() redeemDto: RedeemPointsDto,
     @Request() req,
   ) {
-    return this.customersService.redeemPoints(id, redeemDto, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.customersService.redeemPoints(id, redeemDto, req.user.tenantId, storeId);
   }
 
   @Patch(':id/loyalty/tier')
@@ -202,6 +220,7 @@ export class CustomersController {
     @Body() tierDto: UpdateLoyaltyTierDto,
     @Request() req,
   ) {
-    return this.customersService.updateLoyaltyTier(id, tierDto, req.user.tenantId);
+    const storeId = getScopedStoreId(req.user);
+    return this.customersService.updateLoyaltyTier(id, tierDto, req.user.tenantId, storeId);
   }
 }

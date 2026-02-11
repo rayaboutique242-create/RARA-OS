@@ -37,6 +37,9 @@ export class Customer {
   @Column()
   tenantId: string;
 
+  @Column({ nullable: true })
+  storeId: string;
+
   @Column({ unique: true })
   customerCode: string;
 

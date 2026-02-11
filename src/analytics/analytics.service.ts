@@ -133,13 +133,13 @@ export class AnalyticsService {
 
   // ==================== DASHBOARD OVERVIEW ====================
 
-  async getDashboardOverview(tenantId?: string): Promise<any> {
+  async getDashboardOverview(tenantId?: string, storeId?: string): Promise<any> {
     const tid = requireTenantId(tenantId);
     const { start, end } = this.getDateRange(DateRangePreset.THIS_MONTH);
     const { start: prevStart, end: prevEnd } = this.getPreviousPeriod(start, end);
 
-    const currentMetrics = await this.calculatePeriodMetrics(start, end, tid);
-    const previousMetrics = await this.calculatePeriodMetrics(prevStart, prevEnd, tid);
+    const currentMetrics = await this.calculatePeriodMetrics(start, end, tid, storeId);
+    const previousMetrics = await this.calculatePeriodMetrics(prevStart, prevEnd, tid, storeId);
 
     const revenueGrowth = previousMetrics.revenue > 0 
       ? ((currentMetrics.revenue - previousMetrics.revenue) / previousMetrics.revenue) * 100 
@@ -154,7 +154,8 @@ export class AnalyticsService {
     const todayMetrics = await this.calculatePeriodMetrics(
       new Date(new Date().setHours(0, 0, 0, 0)),
       new Date(),
-      tid
+      tid,
+      storeId
     );
 
     const activeGoals = await this.goalRepository.count({
@@ -175,11 +176,12 @@ export class AnalyticsService {
     };
   }
 
-  private async calculatePeriodMetrics(start: Date, end: Date, tenantId: string): Promise<any> {
+  private async calculatePeriodMetrics(start: Date, end: Date, tenantId: string, storeId?: string): Promise<any> {
     const orderQuery = this.orderRepository.createQueryBuilder('order')
       .leftJoinAndSelect('order.items', 'items')
       .where('order.createdAt BETWEEN :start AND :end', { start, end })
-      .andWhere('order.tenantId = :tenantId', { tenantId });
+      .andWhere('order.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 'order.store_id = :storeId' : '1=1', { storeId });
 
     const orders = await orderQuery.getMany();
 
@@ -198,7 +200,8 @@ export class AnalyticsService {
 
     const customerQuery = this.customerRepository.createQueryBuilder('customer')
       .where('customer.createdAt BETWEEN :start AND :end', { start, end })
-      .andWhere('customer.tenantId = :tenantId', { tenantId });
+      .andWhere('customer.tenantId = :tenantId', { tenantId })
+      .andWhere(storeId ? 'customer.storeId = :storeId' : '1=1', { storeId });
     const newCustomers = await customerQuery.getCount();
 
     const uniqueCustomers = new Set(orders.filter(o => o.customerName).map(o => o.customerName)).size;
@@ -220,14 +223,15 @@ export class AnalyticsService {
 
   // ==================== SALES ANALYTICS ====================
 
-  async getSalesAnalytics(query: AnalyticsQueryDto, tenantId?: string): Promise<any> {
+  async getSalesAnalytics(query: AnalyticsQueryDto, tenantId?: string, storeId?: string): Promise<any> {
     const tid = requireTenantId(tenantId);
     const { start, end } = this.getDateRange(query.dateRange, query.startDate, query.endDate);
     
     const orderQuery = this.orderRepository.createQueryBuilder('order')
       .leftJoinAndSelect('order.items', 'items')
       .where('order.createdAt BETWEEN :start AND :end', { start, end })
-      .andWhere('order.tenantId = :tenantId', { tenantId: tid });
+      .andWhere('order.tenantId = :tenantId', { tenantId: tid })
+      .andWhere(storeId ? 'order.store_id = :storeId' : '1=1', { storeId });
 
     const orders = await orderQuery.getMany();
 
@@ -257,7 +261,7 @@ export class AnalyticsService {
     let comparison: any = null;
     if (query.comparePrevious) {
       const { start: prevStart, end: prevEnd } = this.getPreviousPeriod(start, end);
-      const prevMetrics = await this.calculatePeriodMetrics(prevStart, prevEnd, tid);
+      const prevMetrics = await this.calculatePeriodMetrics(prevStart, prevEnd, tid, storeId);
       comparison = {
         previousPeriod: prevMetrics,
         revenueChange: totalRevenue - prevMetrics.revenue,
@@ -340,7 +344,7 @@ export class AnalyticsService {
 
   // ==================== TOP PERFORMERS ====================
 
-  async getTopProducts(query: TopPerformersQueryDto, tenantId?: string): Promise<any> {
+  async getTopProducts(query: TopPerformersQueryDto, tenantId?: string, storeId?: string): Promise<any> {
     const tid = requireTenantId(tenantId);
     const { start, end } = this.getDateRange(query.dateRange, query.startDate, query.endDate);
     const limit = query.limit || 10;
@@ -354,7 +358,8 @@ export class AnalyticsService {
       .addSelect('COUNT(DISTINCT order.id)', 'orderCount')
       .where('order.createdAt BETWEEN :start AND :end', { start, end })
       .andWhere('order.status NOT IN (:...excludedStatuses)', { excludedStatuses: [OrderStatus.CANCELLED] })
-      .andWhere('order.tenantId = :tenantId', { tenantId: tid });
+      .andWhere('order.tenantId = :tenantId', { tenantId: tid })
+      .andWhere(storeId ? 'order.store_id = :storeId' : '1=1', { storeId });
     const result = await qb
       .groupBy('item.productId')
       .addGroupBy('item.productName')
@@ -375,7 +380,7 @@ export class AnalyticsService {
     };
   }
 
-  async getTopCategories(query: TopPerformersQueryDto, tenantId?: string): Promise<any> {
+  async getTopCategories(query: TopPerformersQueryDto, tenantId?: string, storeId?: string): Promise<any> {
     const tid = requireTenantId(tenantId);
     const { start, end } = this.getDateRange(query.dateRange, query.startDate, query.endDate);
     const limit = query.limit || 10;
@@ -388,7 +393,8 @@ export class AnalyticsService {
       .addSelect('COUNT(DISTINCT order.id)', 'orderCount')
       .where('order.createdAt BETWEEN :start AND :end', { start, end })
       .andWhere('order.status NOT IN (:...excludedStatuses)', { excludedStatuses: [OrderStatus.CANCELLED] })
-      .andWhere('order.tenantId = :tenantId', { tenantId: tid });
+      .andWhere('order.tenantId = :tenantId', { tenantId: tid })
+      .andWhere(storeId ? 'order.store_id = :storeId' : '1=1', { storeId });
     const result = await catQb
       .groupBy('item.productId')
       .orderBy('totalRevenue', 'DESC')
@@ -408,7 +414,7 @@ export class AnalyticsService {
     };
   }
 
-  async getTopCustomers(query: TopPerformersQueryDto, tenantId?: string): Promise<any> {
+  async getTopCustomers(query: TopPerformersQueryDto, tenantId?: string, storeId?: string): Promise<any> {
     const tid = requireTenantId(tenantId);
     const { start, end } = this.getDateRange(query.dateRange, query.startDate, query.endDate);
     const limit = query.limit || 10;
@@ -423,7 +429,8 @@ export class AnalyticsService {
       .where('order.createdAt BETWEEN :start AND :end', { start, end })
       .andWhere('order.status NOT IN (:...excludedStatuses)', { excludedStatuses: [OrderStatus.CANCELLED] })
       .andWhere('order.customerName IS NOT NULL')
-      .andWhere('order.tenantId = :tenantId', { tenantId: tid });
+      .andWhere('order.tenantId = :tenantId', { tenantId: tid })
+      .andWhere(storeId ? 'order.store_id = :storeId' : '1=1', { storeId });
     const result = await custQb
       .groupBy('order.customerName')
       .addGroupBy('order.customerEmail')
@@ -448,10 +455,11 @@ export class AnalyticsService {
 
   // ==================== INVENTORY ANALYTICS ====================
 
-  async getInventoryAnalytics(tenantId?: string): Promise<any> {
+  async getInventoryAnalytics(tenantId?: string, storeId?: string): Promise<any> {
     const tid = requireTenantId(tenantId);
     const productQuery = this.productRepository.createQueryBuilder('product')
-      .where('product.tenantId = :tenantId', { tenantId: tid });
+      .where('product.tenantId = :tenantId', { tenantId: tid })
+      .andWhere(storeId ? 'product.store_id = :storeId' : '1=1', { storeId });
 
     const products = await productQuery.getMany();
 
@@ -509,25 +517,28 @@ export class AnalyticsService {
 
   // ==================== CUSTOMER ANALYTICS ====================
 
-  async getCustomerAnalytics(query: AnalyticsQueryDto, tenantId?: string): Promise<any> {
+  async getCustomerAnalytics(query: AnalyticsQueryDto, tenantId?: string, storeId?: string): Promise<any> {
     const tid = requireTenantId(tenantId);
     const { start, end } = this.getDateRange(query.dateRange, query.startDate, query.endDate);
 
     const newCustomersQuery = this.customerRepository.createQueryBuilder('customer')
       .where('customer.createdAt BETWEEN :start AND :end', { start, end })
-      .andWhere('customer.tenantId = :tenantId', { tenantId: tid });
+      .andWhere('customer.tenantId = :tenantId', { tenantId: tid })
+      .andWhere(storeId ? 'customer.storeId = :storeId' : '1=1', { storeId });
     const newCustomers = await newCustomersQuery.getCount();
 
     const totalCustomersQuery = this.customerRepository.createQueryBuilder('customer')
       .where('customer.createdAt <= :end', { end })
-      .andWhere('customer.tenantId = :tenantId', { tenantId: tid });
+      .andWhere('customer.tenantId = :tenantId', { tenantId: tid })
+      .andWhere(storeId ? 'customer.storeId = :storeId' : '1=1', { storeId });
     const totalCustomers = await totalCustomersQuery.getCount();
 
     const activeQb = this.orderRepository.createQueryBuilder('order')
       .select('COUNT(DISTINCT order.customerName)', 'count')
       .where('order.createdAt BETWEEN :start AND :end', { start, end })
       .andWhere('order.customerName IS NOT NULL')
-      .andWhere('order.tenantId = :tenantId', { tenantId: tid });
+      .andWhere('order.tenantId = :tenantId', { tenantId: tid })
+      .andWhere(storeId ? 'order.store_id = :storeId' : '1=1', { storeId });
     const activeCustomersResult = await activeQb.getRawOne();
     const activeCustomers = Number(activeCustomersResult?.count || 0);
 
@@ -536,7 +547,8 @@ export class AnalyticsService {
       .addSelect('COUNT(order.id)', 'orderCount')
       .where('order.createdAt BETWEEN :start AND :end', { start, end })
       .andWhere('order.customerName IS NOT NULL')
-      .andWhere('order.tenantId = :tenantId', { tenantId: tid });
+      .andWhere('order.tenantId = :tenantId', { tenantId: tid })
+      .andWhere(storeId ? 'order.store_id = :storeId' : '1=1', { storeId });
     const repeatCustomersResult = await repeatQb
       .groupBy('order.customerName')
       .having('COUNT(order.id) > 1')
@@ -548,7 +560,8 @@ export class AnalyticsService {
       .addSelect('SUM(order.total)', 'totalSpent')
       .where('order.createdAt BETWEEN :start AND :end', { start, end })
       .andWhere('order.customerName IS NOT NULL')
-      .andWhere('order.tenantId = :tenantId', { tenantId: tid });
+      .andWhere('order.tenantId = :tenantId', { tenantId: tid })
+      .andWhere(storeId ? 'order.store_id = :storeId' : '1=1', { storeId });
     const segmentation = await segQb
       .groupBy('order.customerName')
       .getRawMany();
@@ -584,7 +597,7 @@ export class AnalyticsService {
 
   // ==================== COMPARISON ANALYTICS ====================
 
-  async getComparison(query: ComparisonQueryDto, tenantId?: string): Promise<any> {
+  async getComparison(query: ComparisonQueryDto, tenantId?: string, storeId?: string): Promise<any> {
     const tid = requireTenantId(tenantId);
     let period1Start: Date, period1End: Date, period2Start: Date, period2End: Date;
 
@@ -617,8 +630,8 @@ export class AnalyticsService {
       period2End = new Date(query.period2End || new Date());
     }
 
-    const period1Metrics = await this.calculatePeriodMetrics(period1Start, period1End, tid);
-    const period2Metrics = await this.calculatePeriodMetrics(period2Start, period2End, tid);
+    const period1Metrics = await this.calculatePeriodMetrics(period1Start, period1End, tid, storeId);
+    const period2Metrics = await this.calculatePeriodMetrics(period2Start, period2End, tid, storeId);
 
     const calculateChange = (current: number, previous: number) => ({
       absolute: Math.round((current - previous) * 100) / 100,
@@ -641,7 +654,7 @@ export class AnalyticsService {
 
   // ==================== TRENDS ====================
 
-  async getTrends(query: TrendQueryDto, tenantId?: string): Promise<any> {
+  async getTrends(query: TrendQueryDto, tenantId?: string, storeId?: string): Promise<any> {
     const tid = requireTenantId(tenantId);
     const { start, end } = this.getDateRange(query.dateRange, query.startDate, query.endDate);
     const groupBy = query.groupBy || GroupBy.DAY;
@@ -649,7 +662,8 @@ export class AnalyticsService {
     const trendQb = this.orderRepository.createQueryBuilder('order')
       .leftJoinAndSelect('order.items', 'items')
       .where('order.createdAt BETWEEN :start AND :end', { start, end })
-      .andWhere('order.tenantId = :tenantId', { tenantId: tid });
+      .andWhere('order.tenantId = :tenantId', { tenantId: tid })
+      .andWhere(storeId ? 'order.store_id = :storeId' : '1=1', { storeId });
     const orders = await trendQb
       .orderBy('order.createdAt', 'ASC')
       .getMany();
@@ -694,7 +708,7 @@ export class AnalyticsService {
 
   // ==================== FORECASTING ====================
 
-  async getForecast(query: AnalyticsQueryDto, tenantId?: string): Promise<any> {
+  async getForecast(query: AnalyticsQueryDto, tenantId?: string, storeId?: string): Promise<any> {
     const tid = requireTenantId(tenantId);
     const historicalStart = new Date();
     historicalStart.setDate(historicalStart.getDate() - 90);
@@ -703,7 +717,8 @@ export class AnalyticsService {
       .leftJoinAndSelect('order.items', 'items')
       .where('order.createdAt >= :start', { start: historicalStart })
       .andWhere('order.status NOT IN (:...excludedStatuses)', { excludedStatuses: [OrderStatus.CANCELLED] })
-      .andWhere('order.tenantId = :tenantId', { tenantId: tid });
+      .andWhere('order.tenantId = :tenantId', { tenantId: tid })
+      .andWhere(storeId ? 'order.store_id = :storeId' : '1=1', { storeId });
     const orders = await forecastQb.getMany();
 
     const dailyData = this.groupOrdersByTime(orders, GroupBy.DAY);

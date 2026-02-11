@@ -14,9 +14,14 @@ export class ProductsService {
     private productRepository: Repository<Product>,
   ) {}
 
-  async create(createProductDto: CreateProductDto, tenantId: string, userId: string): Promise<Product> {
+  async create(createProductDto: CreateProductDto, tenantId: string, userId: string, storeId?: string): Promise<Product> {
+    const existingWhere: Record<string, any> = { sku: createProductDto.sku, tenantId };
+    if (storeId) {
+      existingWhere.storeId = storeId;
+    }
+
     const existingProduct = await this.productRepository.findOne({
-      where: { sku: createProductDto.sku, tenantId },
+      where: existingWhere,
     });
 
     if (existingProduct) {
@@ -26,13 +31,14 @@ export class ProductsService {
     const product = this.productRepository.create({
       ...createProductDto,
       tenantId,
+      storeId,
       createdBy: userId,
     });
 
     return this.productRepository.save(product);
   }
 
-  async findAll(tenantId: string, query: QueryProductDto) {
+  async findAll(tenantId: string, query: QueryProductDto, storeId?: string) {
     const { search, categoryId, isActive, isFeatured, lowStock } = query;
     const page = query.page || 1;
     const limit = query.limit || 20;
@@ -42,6 +48,10 @@ export class ProductsService {
     const queryBuilder = this.productRepository
       .createQueryBuilder('product')
       .where('product.tenant_id = :tenantId', { tenantId });
+
+    if (storeId) {
+      queryBuilder.andWhere('product.store_id = :storeId', { storeId });
+    }
 
     if (search) {
       queryBuilder.andWhere(
@@ -86,9 +96,14 @@ export class ProductsService {
     };
   }
 
-  async findOne(id: string, tenantId: string): Promise<Product> {
+  async findOne(id: string, tenantId: string, storeId?: string): Promise<Product> {
+    const where: Record<string, any> = { id, tenantId };
+    if (storeId) {
+      where.storeId = storeId;
+    }
+
     const product = await this.productRepository.findOne({
-      where: { id, tenantId },
+      where,
     });
 
     if (!product) {
@@ -98,9 +113,14 @@ export class ProductsService {
     return product;
   }
 
-  async findBySku(sku: string, tenantId: string): Promise<Product> {
+  async findBySku(sku: string, tenantId: string, storeId?: string): Promise<Product> {
+    const where: Record<string, any> = { sku, tenantId };
+    if (storeId) {
+      where.storeId = storeId;
+    }
+
     const product = await this.productRepository.findOne({
-      where: { sku, tenantId },
+      where,
     });
 
     if (!product) {
@@ -110,9 +130,14 @@ export class ProductsService {
     return product;
   }
 
-  async findByBarcode(barcode: string, tenantId: string): Promise<Product> {
+  async findByBarcode(barcode: string, tenantId: string, storeId?: string): Promise<Product> {
+    const where: Record<string, any> = { barcode, tenantId };
+    if (storeId) {
+      where.storeId = storeId;
+    }
+
     const product = await this.productRepository.findOne({
-      where: { barcode, tenantId },
+      where,
     });
 
     if (!product) {
@@ -122,12 +147,12 @@ export class ProductsService {
     return product;
   }
 
-  async update(id: string, updateProductDto: UpdateProductDto, tenantId: string): Promise<Product> {
-    const product = await this.findOne(id, tenantId);
+  async update(id: string, updateProductDto: UpdateProductDto, tenantId: string, storeId?: string): Promise<Product> {
+    const product = await this.findOne(id, tenantId, storeId);
 
     if (updateProductDto.sku && updateProductDto.sku !== product.sku) {
       const existingProduct = await this.productRepository.findOne({
-        where: { sku: updateProductDto.sku, tenantId },
+        where: storeId ? { sku: updateProductDto.sku, tenantId, storeId } : { sku: updateProductDto.sku, tenantId },
       });
       if (existingProduct) {
         throw new BadRequestException('Un produit avec ce SKU existe déjà');
@@ -138,19 +163,19 @@ export class ProductsService {
     return this.productRepository.save(product);
   }
 
-  async remove(id: string, tenantId: string): Promise<void> {
-    const product = await this.findOne(id, tenantId);
+  async remove(id: string, tenantId: string, storeId?: string): Promise<void> {
+    const product = await this.findOne(id, tenantId, storeId);
     await this.productRepository.remove(product);
   }
 
-  async updateStock(id: string, quantity: number, tenantId: string): Promise<Product> {
-    const product = await this.findOne(id, tenantId);
+  async updateStock(id: string, quantity: number, tenantId: string, storeId?: string): Promise<Product> {
+    const product = await this.findOne(id, tenantId, storeId);
     product.stockQuantity = quantity;
     return this.productRepository.save(product);
   }
 
-  async adjustStock(id: string, adjustment: number, tenantId: string): Promise<Product> {
-    const product = await this.findOne(id, tenantId);
+  async adjustStock(id: string, adjustment: number, tenantId: string, storeId?: string): Promise<Product> {
+    const product = await this.findOne(id, tenantId, storeId);
     const newQuantity = product.stockQuantity + adjustment;
 
     if (newQuantity < 0) {
@@ -161,29 +186,49 @@ export class ProductsService {
     return this.productRepository.save(product);
   }
 
-  async getLowStockProducts(tenantId: string): Promise<Product[]> {
-    return this.productRepository
+  async getLowStockProducts(tenantId: string, storeId?: string): Promise<Product[]> {
+    const queryBuilder = this.productRepository
       .createQueryBuilder('product')
       .where('product.tenant_id = :tenantId', { tenantId })
       .andWhere('product.stock_quantity <= product.min_stock_level')
-      .andWhere('product.is_active = :isActive', { isActive: true })
-      .getMany();
+      .andWhere('product.is_active = :isActive', { isActive: true });
+
+    if (storeId) {
+      queryBuilder.andWhere('product.store_id = :storeId', { storeId });
+    }
+
+    return queryBuilder.getMany();
   }
 
-  async getProductStats(tenantId: string) {
-    const totalProducts = await this.productRepository.count({ where: { tenantId } });
-    const activeProducts = await this.productRepository.count({ where: { tenantId, isActive: true } });
-    const lowStockProducts = await this.productRepository
-      .createQueryBuilder('product')
-      .where('product.tenant_id = :tenantId', { tenantId })
-      .andWhere('product.stock_quantity <= product.min_stock_level')
-      .getCount();
+  async getProductStats(tenantId: string, storeId?: string) {
+    const baseWhere: Record<string, any> = { tenantId };
+    if (storeId) {
+      baseWhere.storeId = storeId;
+    }
 
-    const totalStockValue = await this.productRepository
+    const totalProducts = await this.productRepository.count({ where: baseWhere });
+    const activeProducts = await this.productRepository.count({ where: { ...baseWhere, isActive: true } });
+    const lowStockQuery = this.productRepository
       .createQueryBuilder('product')
       .where('product.tenant_id = :tenantId', { tenantId })
-      .select('SUM(product.stock_quantity * product.purchase_price)', 'value')
-      .getRawOne();
+      .andWhere('product.stock_quantity <= product.min_stock_level');
+
+    if (storeId) {
+      lowStockQuery.andWhere('product.store_id = :storeId', { storeId });
+    }
+
+    const lowStockProducts = await lowStockQuery.getCount();
+
+    const totalStockQuery = this.productRepository
+      .createQueryBuilder('product')
+      .where('product.tenant_id = :tenantId', { tenantId })
+      .select('SUM(product.stock_quantity * product.purchase_price)', 'value');
+
+    if (storeId) {
+      totalStockQuery.andWhere('product.store_id = :storeId', { storeId });
+    }
+
+    const totalStockValue = await totalStockQuery.getRawOne();
 
     return {
       totalProducts,
