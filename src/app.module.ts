@@ -167,10 +167,16 @@ import { CreateTenantData1739300000000 } from './database/migrations/17393000000
     }),
     ServeStaticModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => [{
-        rootPath: join(__dirname, '..', configService.get<string>('UPLOAD_DIR', './uploads')),
-        serveRoot: '/uploads',
-      }],
+      useFactory: (configService: ConfigService) => [
+        {
+          rootPath: join(
+            __dirname,
+            '..',
+            configService.get<string>('UPLOAD_DIR', './uploads'),
+          ),
+          serveRoot: '/uploads',
+        },
+      ],
       inject: [ConfigService],
     }),
     // Cache Redis avec fallback memoire
@@ -182,45 +188,119 @@ import { CreateTenantData1739300000000 } from './database/migrations/17393000000
       useFactory: (configService: ConfigService) => {
         const databaseUrl = configService.get<string>('DATABASE_URL');
         // Auto-detect postgres from DATABASE_URL even if DB_TYPE not set
-        const rawDbType = configService.get<string>('DB_TYPE', 'better-sqlite3');
-        const isPostgresUrl = databaseUrl && (databaseUrl.startsWith('postgres://') || databaseUrl.startsWith('postgresql://'));
+        const rawDbType = configService.get<string>(
+          'DB_TYPE',
+          'better-sqlite3',
+        );
+        const isPostgresUrl =
+          databaseUrl &&
+          (databaseUrl.startsWith('postgres://') ||
+            databaseUrl.startsWith('postgresql://'));
         const dbType = isPostgresUrl ? 'postgres' : rawDbType;
         const isPostgres = dbType === 'postgres';
         const nodeEnv = configService.get<string>('NODE_ENV');
-        
+
         // IMPORTANT: synchronize should be FALSE by default - use migrations instead
         // Only enable via DB_SYNCHRONIZE=true for initial dev setup
         // DB_FORCE_SYNC=true bypasses the production check (emergency only)
         const forceSync = configService.get<string>('DB_FORCE_SYNC') === 'true';
-        const synchronize = forceSync || (configService.get<string>('DB_SYNCHRONIZE') === 'true' && nodeEnv !== 'production');
-        const migrationsRun = configService.get<string>('DB_MIGRATIONS_RUN') !== 'false';
+        const synchronize =
+          forceSync ||
+          (configService.get<string>('DB_SYNCHRONIZE') === 'true' &&
+            nodeEnv !== 'production');
+        const migrationsRun =
+          configService.get<string>('DB_MIGRATIONS_RUN') === 'true';
 
         // Base config common to all DB types
         const baseConfig = {
           entities: [
-            User, Product, Order, OrderItem, Category, Delivery, Customer,
-            Notification, StockAlert, StockMovement, InventoryCount, InventoryCountItem,
-            Supplier, PurchaseOrder, PurchaseOrderItem, Reception, ReceptionItem,
-            PaymentMethod, Transaction, Refund,
-            Promotion, Coupon, Discount, PromotionUsage,
-            Setting, Currency, TaxRate, StoreConfig,
-            AuditLog, UserActivity, DataChangeHistory,
-            Tenant, Store, TenantSubscription, TenantInvoice, PromoCode, PromoCodeRedemption, CustomDomain,
-            File, MediaFile, Document,
-            LoyaltyProgram, LoyaltyTier, LoyaltyPoints, LoyaltyReward, LoyaltyRedemption, CustomerLoyalty,
-            AnalyticsSnapshot, SalesGoal, CustomReport,
-            ExportJob, ImportJob,
-            Webhook, WebhookLog,
-            Backup, Restore, BackupSchedule,
-            ExchangeRate, CurrencyConfig, PriceInCurrency, ConversionHistory,
-            Conversation, Message, MessageReadStatus, UserPresence,
-            ReturnRequest, ReturnItem, StoreCredit, ReturnPolicy,
-            ServiceOffering, TimeSlot, Appointment, BlockedTime,
-            LoginAttempt, BlockedIp, UserTwoFactor, SecurityConfig,
-            Invitation, JoinRequest, UserTenant,
+            User,
+            Product,
+            Order,
+            OrderItem,
+            Category,
+            Delivery,
+            Customer,
+            Notification,
+            StockAlert,
+            StockMovement,
+            InventoryCount,
+            InventoryCountItem,
+            Supplier,
+            PurchaseOrder,
+            PurchaseOrderItem,
+            Reception,
+            ReceptionItem,
+            PaymentMethod,
+            Transaction,
+            Refund,
+            Promotion,
+            Coupon,
+            Discount,
+            PromotionUsage,
+            Setting,
+            Currency,
+            TaxRate,
+            StoreConfig,
+            AuditLog,
+            UserActivity,
+            DataChangeHistory,
+            Tenant,
+            Store,
+            TenantSubscription,
+            TenantInvoice,
+            PromoCode,
+            PromoCodeRedemption,
+            CustomDomain,
+            File,
+            MediaFile,
+            Document,
+            LoyaltyProgram,
+            LoyaltyTier,
+            LoyaltyPoints,
+            LoyaltyReward,
+            LoyaltyRedemption,
+            CustomerLoyalty,
+            AnalyticsSnapshot,
+            SalesGoal,
+            CustomReport,
+            ExportJob,
+            ImportJob,
+            Webhook,
+            WebhookLog,
+            Backup,
+            Restore,
+            BackupSchedule,
+            ExchangeRate,
+            CurrencyConfig,
+            PriceInCurrency,
+            ConversionHistory,
+            Conversation,
+            Message,
+            MessageReadStatus,
+            UserPresence,
+            ReturnRequest,
+            ReturnItem,
+            StoreCredit,
+            ReturnPolicy,
+            ServiceOffering,
+            TimeSlot,
+            Appointment,
+            BlockedTime,
+            LoginAttempt,
+            BlockedIp,
+            UserTwoFactor,
+            SecurityConfig,
+            Invitation,
+            JoinRequest,
+            UserTenant,
             Session,
-            SupportTicket, TicketResponse,
-            AlertRule, AlertEvent, SystemMetric, ErrorLog,
+            SupportTicket,
+            TicketResponse,
+            AlertRule,
+            AlertEvent,
+            SystemMetric,
+            ErrorLog,
             TenantData,
           ],
           synchronize,
@@ -255,9 +335,10 @@ import { CreateTenantData1739300000000 } from './database/migrations/17393000000
             username: configService.get<string>('DB_USERNAME', 'raya'),
             password: configService.get<string>('DB_PASSWORD', ''),
             database: configService.get<string>('DB_DATABASE', 'raya'),
-            ssl: configService.get<string>('DB_SSL') === 'true'
-              ? { rejectUnauthorized: false }
-              : false,
+            ssl:
+              configService.get<string>('DB_SSL') === 'true'
+                ? { rejectUnauthorized: false }
+                : false,
           };
         }
 
