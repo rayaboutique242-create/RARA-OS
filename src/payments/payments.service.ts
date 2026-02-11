@@ -183,12 +183,12 @@ export class PaymentsService {
       netAmount,
       status: TransactionStatus.PENDING,
       tenantId,
-      storeId: order?.storeId || storeId || null,
+      storeId: order?.storeId || storeId || undefined,
       processedBy: userId,
       processedByName: userName,
     });
 
-    return this.transactionRepo.save(transaction);
+    return this.transactionRepo.save(transaction as any);
   }
 
   async findAllTransactions(query: TransactionQueryDto, tenantId: string, storeId?: string) {
@@ -388,10 +388,10 @@ export class PaymentsService {
       requestedBy: userId,
       requestedByName: userName,
       tenantId,
-      storeId: transaction.storeId || storeId || null,
+      storeId: transaction.storeId || storeId || undefined,
     });
 
-    return this.refundRepo.save(refund);
+    return this.refundRepo.save(refund as any);
   }
 
   async findAllRefunds(query: RefundQueryDto, tenantId: string, storeId?: string) {

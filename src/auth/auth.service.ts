@@ -100,8 +100,6 @@ export class AuthService {
 
     await this.usersService.updateLastLogin(user.id);
 
-    const storeId = await this.resolveStoreId(user.id, user.tenantId);
-
     // Generate tokens
     const tokens = await this.generateTokens(user);
 
@@ -583,6 +581,8 @@ export class AuthService {
       user.id,
       this.hashToken(tokens.refreshToken),
     );
+
+    const storeId = await this.resolveStoreId(user.id, user.tenantId);
 
     return {
       ...tokens,
