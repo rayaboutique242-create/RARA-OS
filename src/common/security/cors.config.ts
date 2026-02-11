@@ -23,6 +23,8 @@ export const corsConfig: CorsOptions = {
       'http://localhost:3001',
       'http://localhost:4200', // Angular default
       'http://localhost:5173', // Vite default
+      'https://rayamanager.online', // Production frontend
+      'https://www.rayamanager.online', // Production frontend (www)
       ...parseList(process.env.FRONTEND_URL),
       ...parseList(process.env.STAGING_URL),
       ...parseList(process.env.PRODUCTION_URL),
