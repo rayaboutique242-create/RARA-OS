@@ -1,14 +1,49 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { TenantData } from './entities/tenant-data.entity';
 
 @Injectable()
-export class SyncService {
+export class SyncService implements OnModuleInit {
+  private readonly logger = new Logger(SyncService.name);
+
   constructor(
     @InjectRepository(TenantData)
     private readonly repo: Repository<TenantData>,
+    private readonly dataSource: DataSource,
   ) {}
+
+  async onModuleInit() {
+    // Ensure tenant_data table exists (self-healing)
+    try {
+      const qr = this.dataSource.createQueryRunner();
+      const hasTable = await qr.hasTable('tenant_data');
+      if (!hasTable) {
+        this.logger.log('Creating tenant_data table...');
+        await qr.query(`
+          CREATE TABLE IF NOT EXISTS "tenant_data" (
+            "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+            "tenantId" varchar NOT NULL,
+            "collection" varchar NOT NULL,
+            "data" text DEFAULT '[]',
+            "version" int DEFAULT 0,
+            "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT "PK_tenant_data" PRIMARY KEY ("id")
+          )
+        `);
+        await qr.query(`
+          CREATE UNIQUE INDEX IF NOT EXISTS "IDX_tenant_collection" ON "tenant_data" ("tenantId", "collection")
+        `);
+        this.logger.log('tenant_data table created successfully');
+      } else {
+        this.logger.log('tenant_data table already exists');
+      }
+      await qr.release();
+    } catch (err) {
+      this.logger.warn('Could not verify/create tenant_data table: ' + err.message);
+    }
+  }
 
   /** GET all collections for a tenant */
   async getAll(tenantId: string): Promise<Record<string, any[]>> {
