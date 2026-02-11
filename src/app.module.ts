@@ -193,7 +193,7 @@ import { CreateTenantData1739300000000 } from './database/migrations/17393000000
         // DB_FORCE_SYNC=true bypasses the production check (emergency only)
         const forceSync = configService.get<string>('DB_FORCE_SYNC') === 'true';
         const synchronize = forceSync || (configService.get<string>('DB_SYNCHRONIZE') === 'true' && nodeEnv !== 'production');
-        const migrationsRun = configService.get<string>('DB_MIGRATIONS_RUN') === 'true';
+        const migrationsRun = configService.get<string>('DB_MIGRATIONS_RUN') !== 'false';
 
         // Base config common to all DB types
         const baseConfig = {
