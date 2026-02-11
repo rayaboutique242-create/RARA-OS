@@ -155,6 +155,7 @@ import { InitialSchema1738800000000 } from './database/migrations/1738800000000-
 import { AddStoreIdToCustomersProducts1739200000000 } from './database/migrations/1739200000000-AddStoreIdToCustomersProducts';
 import { AddStoreIdToPaymentsReturns1739200000001 } from './database/migrations/1739200000001-AddStoreIdToPaymentsReturns';
 import { BackfillStoreIdCustomersProducts1739200000002 } from './database/migrations/1739200000002-BackfillStoreIdCustomersProducts';
+import { CreateTenantData1739300000000 } from './database/migrations/1739300000000-CreateTenantData';
 
 @Module({
   imports: [
@@ -229,6 +230,7 @@ import { BackfillStoreIdCustomersProducts1739200000002 } from './database/migrat
             AddStoreIdToCustomersProducts1739200000000,
             AddStoreIdToPaymentsReturns1739200000001,
             BackfillStoreIdCustomersProducts1739200000002,
+            CreateTenantData1739300000000,
           ],
           logging: nodeEnv === 'development',
           cache: { duration: 30000 },
