@@ -392,8 +392,8 @@ import { CreateTenantData1739300000000 } from './database/migrations/17393000000
     MonitoringModule,
     // NEW: User Support System
     SupportModule,
-    // NEW: Generic Data Sync (all collections)
-    SyncModule,
+    // NOTE: SyncModule disabled - sync routes are in AppController using raw SQL
+    // SyncModule,
     // TenantGuard (APP_GUARD) needs Tenant + UserTenant repositories in root scope
     TypeOrmModule.forFeature([Tenant, UserTenant]),
   ],
