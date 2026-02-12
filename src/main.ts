@@ -4,6 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import compression from 'compression';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -20,22 +21,37 @@ import { HttpCacheHeadersInterceptor } from './performance/interceptors/cache-he
 import { TenantContextGuard } from './common/tenant.guard';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Disable NestJS built-in body parser (100KB default) so we can set our own limit
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
   const nodeEnv = process.env.NODE_ENV || 'development';
   const isProd = nodeEnv === 'production';
+
+  // ==================== PAYLOAD SIZE: 10MB for sync ====================
+  app.use(json({ limit: '10mb' }));
+  app.use(urlencoded({ extended: true, limit: '10mb' }));
 
   // ==================== DB CONFIG LOG ====================
   const dbSync = process.env.DB_SYNCHRONIZE || 'false';
   const dbForce = process.env.DB_FORCE_SYNC || 'false';
   const dbMigRun = process.env.DB_MIGRATIONS_RUN || 'true';
-  console.log(`[DB] synchronize=${dbSync} forceSync=${dbForce} migrationsRun=${dbMigRun} env=${nodeEnv}`);
+  console.log(
+    `[DB] synchronize=${dbSync} forceSync=${dbForce} migrationsRun=${dbMigRun} env=${nodeEnv}`,
+  );
 
   // ==================== SECURITY: CORS ====================
-  const selectedCorsConfig = isProd ? corsConfigProd : nodeEnv === 'staging' ? corsConfig : corsConfigDev;
+  const selectedCorsConfig = isProd
+    ? corsConfigProd
+    : nodeEnv === 'staging'
+      ? corsConfig
+      : corsConfigDev;
   app.enableCors(selectedCorsConfig);
 
   // ==================== SECURITY: Helmet ====================
-  const selectedHelmetConfig = isProd ? helmetConfigProd : nodeEnv === 'staging' ? helmetConfig : helmetConfigDev;
+  const selectedHelmetConfig = isProd
+    ? helmetConfigProd
+    : nodeEnv === 'staging'
+      ? helmetConfig
+      : helmetConfigDev;
   app.use(helmet(selectedHelmetConfig));
 
   // ==================== SECURITY: Rate Limiting ====================
@@ -73,7 +89,8 @@ async function bootstrap() {
   // ==================== Swagger ====================
   const config = new DocumentBuilder()
     .setTitle('Raya API')
-    .setDescription(`
+    .setDescription(
+      `
 ## API de gestion de boutique - Systeme multi-tenant SaaS
 
 ### Fonctionnalites principales:
@@ -89,24 +106,45 @@ Utilisez le bouton "Authorize" pour entrer votre token JWT.
 ### Headers importants:
 - \`Authorization: Bearer <token>\` - Token JWT
 - \`X-Tenant-Id\` - ID du tenant actuel (optionnel, extrait du token)
-    `)
+    `,
+    )
     .setVersion('2.0')
     .addBearerAuth(
-      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', description: 'Entrez votre token JWT' },
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'Entrez votre token JWT',
+      },
       'bearer',
     )
     // === CORE MODULES ===
     .addTag('Auth', 'Authentification, login, register, sessions')
-    .addTag('Tenants - Multi-Boutiques', 'Gestion des entreprises, magasins et abonnements')
-    .addTag('Promo Codes - SaaS', 'Codes promo pour activer les abonnements SaaS')
-    .addTag('Invitations - Gestion des Adhesions', 'Invitations, codes QR et demandes d adhesion')
-    .addTag('User Tenants - Memberships', 'Gestion des membres multi-entreprises')
+    .addTag(
+      'Tenants - Multi-Boutiques',
+      'Gestion des entreprises, magasins et abonnements',
+    )
+    .addTag(
+      'Promo Codes - SaaS',
+      'Codes promo pour activer les abonnements SaaS',
+    )
+    .addTag(
+      'Invitations - Gestion des Adhesions',
+      'Invitations, codes QR et demandes d adhesion',
+    )
+    .addTag(
+      'User Tenants - Memberships',
+      'Gestion des membres multi-entreprises',
+    )
     // === BUSINESS MODULES ===
     .addTag('Products', 'Gestion des produits et stocks')
     .addTag('Categories', 'Gestion des categories de produits')
     .addTag('Orders', 'Gestion des commandes et paiements')
     .addTag('Customers', 'CRM - Gestion des clients et fidelite')
-    .addTag('Suppliers', 'Gestion des fournisseurs, commandes achat et receptions')
+    .addTag(
+      'Suppliers',
+      'Gestion des fournisseurs, commandes achat et receptions',
+    )
     .addTag('Inventory', 'Mouvements de stock, inventaires et historique')
     .addTag('Deliveries', 'Gestion des livraisons et tracking')
     .addTag('Payments', 'Paiements, transactions et remboursements')
