@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Delete, Body, Param, Query, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Put, Patch, Delete, Body, Param, Query, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
 import { SyncService } from './sync.service';
 
 @Controller('sync')
@@ -57,6 +57,18 @@ export class SyncController {
   async putBulk(@Request() req: any, @Body() body: { collections: Record<string, any[]> }) {
     const tenantId = req.user?.tenantId || 'default';
     const result = await this.syncService.putBulk(tenantId, body.collections || {});
+    return { tenantId, ...result };
+  }
+
+  /**
+   * PATCH /sync - Incremental delta sync (upserts + deletes per collection)
+   * Body: { deltas: { collection: { upserts: [...], deletes: [...] } }, versions?: {} }
+   */
+  @Patch()
+  @HttpCode(HttpStatus.OK)
+  async patchDelta(@Request() req: any, @Body() body: { deltas: Record<string, { upserts?: any[]; deletes?: any[] }>, versions?: Record<string, number> }) {
+    const tenantId = req.user?.tenantId || 'default';
+    const result = await this.syncService.patchDelta(tenantId, body.deltas || {});
     return { tenantId, ...result };
   }
 

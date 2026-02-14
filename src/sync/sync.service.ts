@@ -96,6 +96,49 @@ export class SyncService implements OnModuleInit {
     return { synced, counts };
   }
 
+  /** PATCH delta - apply incremental upserts/deletes to existing collections */
+  async patchDelta(tenantId: string, deltas: Record<string, { upserts?: any[]; deletes?: any[] }>): Promise<{ patched: string[]; counts: Record<string, number> }> {
+    const patched: string[] = [];
+    const counts: Record<string, number> = {};
+    for (const [collection, delta] of Object.entries(deltas)) {
+      if (!delta) continue;
+      const upserts = delta.upserts || [];
+      const deletes = delta.deletes || [];
+      if (upserts.length === 0 && deletes.length === 0) continue;
+
+      // Get existing data
+      let existing = await this.getCollection(tenantId, collection);
+
+      // Apply deletes
+      if (deletes.length > 0) {
+        const deleteIds = new Set(deletes.map(id => String(id)));
+        existing = existing.filter(item => !deleteIds.has(String(item.id)));
+      }
+
+      // Apply upserts (update existing or insert new)
+      if (upserts.length > 0) {
+        const existingMap = new Map<string, number>();
+        for (let i = 0; i < existing.length; i++) {
+          if (existing[i].id != null) existingMap.set(String(existing[i].id), i);
+        }
+        for (const item of upserts) {
+          const id = String(item.id);
+          const idx = existingMap.get(id);
+          if (idx !== undefined) {
+            existing[idx] = item; // Update
+          } else {
+            existing.push(item); // Insert
+          }
+        }
+      }
+
+      await this.putCollection(tenantId, collection, existing);
+      patched.push(collection);
+      counts[collection] = existing.length;
+    }
+    return { patched, counts };
+  }
+
   /** DELETE one collection */
   async deleteCollection(tenantId: string, collection: string): Promise<boolean> {
     const result = await this.repo.delete({ tenantId, collection });
