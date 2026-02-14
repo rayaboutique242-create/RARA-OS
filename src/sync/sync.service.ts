@@ -46,17 +46,19 @@ export class SyncService implements OnModuleInit {
   }
 
   /** GET all collections for a tenant */
-  async getAll(tenantId: string): Promise<Record<string, any[]>> {
+  async getAll(tenantId: string): Promise<{ collections: Record<string, any[]>; versions: Record<string, number> }> {
     const rows = await this.repo.find({ where: { tenantId } });
-    const result: Record<string, any[]> = {};
+    const collections: Record<string, any[]> = {};
+    const versions: Record<string, number> = {};
     for (const row of rows) {
       try {
-        result[row.collection] = JSON.parse(row.data);
+        collections[row.collection] = JSON.parse(row.data);
       } catch {
-        result[row.collection] = [];
+        collections[row.collection] = [];
       }
+      versions[row.collection] = row.version || 0;
     }
-    return result;
+    return { collections, versions };
   }
 
   /** GET one collection for a tenant */
@@ -84,16 +86,18 @@ export class SyncService implements OnModuleInit {
   }
 
   /** PUT bulk - multiple collections at once */
-  async putBulk(tenantId: string, collections: Record<string, any[]>): Promise<{ synced: string[]; counts: Record<string, number> }> {
+  async putBulk(tenantId: string, collections: Record<string, any[]>): Promise<{ synced: string[]; counts: Record<string, number>; versions: Record<string, number> }> {
     const synced: string[] = [];
     const counts: Record<string, number> = {};
+    const versions: Record<string, number> = {};
     for (const [collection, data] of Object.entries(collections)) {
       if (!Array.isArray(data)) continue;
-      await this.putCollection(tenantId, collection, data);
+      const result = await this.putCollection(tenantId, collection, data);
       synced.push(collection);
       counts[collection] = data.length;
+      versions[collection] = result.version;
     }
-    return { synced, counts };
+    return { synced, counts, versions };
   }
 
   /** PATCH delta - apply incremental upserts/deletes to existing collections */

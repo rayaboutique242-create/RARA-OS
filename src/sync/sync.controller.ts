@@ -12,8 +12,8 @@ export class SyncController {
   @Get()
   async getAll(@Request() req: any) {
     const tenantId = req.user?.tenantId || 'default';
-    const collections = await this.syncService.getAll(tenantId);
-    return { tenantId, collections };
+    const result = await this.syncService.getAll(tenantId);
+    return { tenantId, collections: result.collections, versions: result.versions };
   }
 
   /**
