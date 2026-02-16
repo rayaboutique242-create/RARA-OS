@@ -7,7 +7,7 @@ import { JoinRequest, JoinRequestStatus } from './entities/join-request.entity';
 import { CreateInvitationDto, JoinByCodeDto } from './dto';
 import { randomBytes } from 'crypto';
 import { UserTenantsService } from '../user-tenants/user-tenants.service';
-import { JoinedVia } from '../user-tenants/entities/user-tenant.entity';
+import { JoinedVia, MembershipStatus } from '../user-tenants/entities/user-tenant.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationChannel, NotificationType } from '../notifications/entities/notification.entity';
 
@@ -73,8 +73,13 @@ export class InvitationsService implements OnModuleInit {
 
     // Déterminer le type d'invitation
     let invitationType = InvitationType.CODE;
-    if (dto.email) invitationType = InvitationType.EMAIL;
-    else if (dto.phone) invitationType = InvitationType.PHONE;
+    if (dto.invitationType && Object.values(InvitationType).includes(dto.invitationType as InvitationType)) {
+      invitationType = dto.invitationType as InvitationType;
+    } else if (dto.email) {
+      invitationType = InvitationType.EMAIL;
+    } else if (dto.phone) {
+      invitationType = InvitationType.PHONE;
+    }
 
     // Date d'expiration par défaut: 7 jours
     const expiresAt = dto.expiresAt
@@ -181,6 +186,25 @@ export class InvitationsService implements OnModuleInit {
     invitation.acceptedByUserId = userId;
     await this.invitationRepository.save(invitation);
 
+    // ═══ CREATE MEMBERSHIP for the user ═══
+    try {
+      await this.userTenantsService.createMembership(
+        userId,
+        invitation.tenantId,
+        invitation.role || 'VENDEUR',
+        JoinedVia.INVITATION,
+        {
+          invitationId: invitation.id,
+          storeId: invitation.storeId,
+          status: MembershipStatus.PENDING,
+        },
+      );
+      this.logger.log(`PENDING membership created for user ${userId} in tenant ${invitation.tenantId} via invitation ${code}`);
+    } catch (e) {
+      // Log but don't fail — membership might already exist
+      this.logger.warn(`createMembership after invitation use failed: ${e.message}`);
+    }
+
     this.logger.log(`Invitation ${code} used by ${userId}. Uses: ${invitation.currentUses}/${invitation.maxUses}, expiresAt: ${invitation.expiresAt}`);
     return { valid: true, invitation };
   }
@@ -225,7 +249,7 @@ export class InvitationsService implements OnModuleInit {
   /**
    * Obtenir les infos publiques d'un tenant par code d'invitation
    */
-  async getTenantInfoByCode(code: string): Promise<{ tenantId: string; role: string; tenantName?: string; expiresAt?: string } | null> {
+  async getTenantInfoByCode(code: string): Promise<{ tenantId: string; role: string; storeId?: string; tenantName?: string; expiresAt?: string } | null> {
     const invitation = await this.invitationRepository.findOne({
       where: { invitationCode: code.toUpperCase(), status: InvitationStatus.PENDING },
     });
@@ -261,7 +285,7 @@ export class InvitationsService implements OnModuleInit {
       if (result && result.length > 0) tenantName = result[0].name;
     } catch (e) {}
 
-    return { tenantId: invitation.tenantId, role: invitation.role, tenantName, expiresAt: invitation.expiresAt?.toISOString() };
+    return { tenantId: invitation.tenantId, role: invitation.role, storeId: invitation.storeId || undefined, tenantName, expiresAt: invitation.expiresAt?.toISOString() };
   }
 
   // ════════════════════════════════════════════════════════════════════════════

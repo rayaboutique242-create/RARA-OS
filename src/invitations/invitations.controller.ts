@@ -109,7 +109,15 @@ export class InvitationsController {
   async getByToken(@Param('token') token: string) {
     const invitation = await this.invitationsService.validateByToken(token);
     if (!invitation) return { valid: false, error: 'Lien invalide ou expire' };
-    return { valid: true, tenantId: invitation.tenantId, role: invitation.role, message: invitation.message };
+    return {
+      valid: true,
+      tenantId: invitation.tenantId,
+      role: invitation.role,
+      message: invitation.message,
+      invitationCode: invitation.invitationCode,
+      invitationToken: invitation.invitationToken,
+      expiresAt: invitation.expiresAt,
+    };
   }
 
   @Delete(':id')

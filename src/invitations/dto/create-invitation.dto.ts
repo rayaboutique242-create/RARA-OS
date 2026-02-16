@@ -17,6 +17,14 @@ export enum InvitationStatus {
   CANCELLED = 'CANCELLED',
 }
 
+export enum InvitationTypeDto {
+  CODE = 'CODE',
+  LINK = 'LINK',
+  EMAIL = 'EMAIL',
+  PHONE = 'PHONE',
+  QR = 'QR',
+}
+
 export class CreateInvitationDto {
   @ApiPropertyOptional({ description: 'Email de la personne invitée' })
   @IsOptional()
@@ -31,6 +39,11 @@ export class CreateInvitationDto {
   @ApiProperty({ enum: InvitationRole, description: 'Rôle attribué' })
   @IsEnum(InvitationRole)
   role: InvitationRole;
+
+  @ApiPropertyOptional({ enum: InvitationTypeDto, description: 'Type d\'invitation (CODE, LINK, EMAIL, PHONE, QR)' })
+  @IsOptional()
+  @IsString()
+  invitationType?: string;
 
   @ApiPropertyOptional({ description: 'ID du point de vente assigné' })
   @IsOptional()

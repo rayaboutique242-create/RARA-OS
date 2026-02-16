@@ -1,14 +1,19 @@
 // src/user-tenants/user-tenants.service.ts
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserTenant, MembershipStatus, JoinedVia } from './entities/user-tenant.entity';
+import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class UserTenantsService {
+  private readonly logger = new Logger(UserTenantsService.name);
+
   constructor(
     @InjectRepository(UserTenant)
     private userTenantRepository: Repository<UserTenant>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
   ) {}
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -28,8 +33,11 @@ export class UserTenantsService {
       invitationId?: string;
       joinRequestId?: string;
       isDefault?: boolean;
+      status?: MembershipStatus;
     },
   ): Promise<UserTenant> {
+    const targetStatus = options?.status || MembershipStatus.ACTIVE;
+
     // Vérifier si membership existe déjà
     const existing = await this.userTenantRepository.findOne({
       where: { userId, tenantId },
@@ -39,9 +47,10 @@ export class UserTenantsService {
       if (existing.status === MembershipStatus.ACTIVE) {
         throw new BadRequestException('L\'utilisateur est déjà membre de cette entreprise');
       }
-      // Réactiver si inactif
-      existing.status = MembershipStatus.ACTIVE;
+      // Réactiver/mettre à jour avec le nouveau statut
+      existing.status = targetStatus;
       existing.role = role;
+      if (options?.storeId) existing.storeId = options.storeId;
       return this.userTenantRepository.save(existing);
     }
 
@@ -58,7 +67,7 @@ export class UserTenantsService {
       invitationId: options?.invitationId,
       joinRequestId: options?.joinRequestId,
       isDefault,
-      status: MembershipStatus.ACTIVE,
+      status: targetStatus,
     });
 
     return this.userTenantRepository.save(membership);
@@ -306,6 +315,14 @@ export class UserTenantsService {
     // Soft delete: marquer comme INACTIVE
     membership.status = MembershipStatus.INACTIVE;
     await this.userTenantRepository.save(membership);
+
+    // Also deactivate the user account so they don't appear in GET /users
+    try {
+      await this.userRepository.update(userId, { status: 'inactive' });
+      this.logger.log(`User ${userId} deactivated after membership removal from tenant ${tenantId}`);
+    } catch (err) {
+      this.logger.warn(`Failed to deactivate user ${userId}: ${err.message}`);
+    }
   }
 
   /**
@@ -417,5 +434,87 @@ export class UserTenantsService {
       acc[member.role] = (acc[member.role] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // PENDING APPROVAL FLOW
+  // ════════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Récupérer le statut de membership d'un user dans un tenant (y compris PENDING)
+   */
+  async getMyMembershipStatus(userId: string, tenantId: string): Promise<{ status: string; role: string; tenantId: string } | null> {
+    const membership = await this.userTenantRepository.findOne({
+      where: { userId, tenantId },
+    });
+    if (!membership) return null;
+    return { status: membership.status, role: membership.role, tenantId: membership.tenantId };
+  }
+
+  /**
+   * Récupérer les membres en attente d'approbation d'un tenant (avec info user)
+   */
+  async findPendingMembers(tenantId: string): Promise<any[]> {
+    const results = await this.userTenantRepository.query(
+      `SELECT ut.*, u.email, u.first_name AS "firstName", u.last_name AS "lastName", u.username
+       FROM user_tenants ut
+       LEFT JOIN users u ON ut.user_id = CAST(u.id AS TEXT)
+       WHERE ut.tenant_id = $1 AND ut.status = 'PENDING'
+       ORDER BY ut.created_at DESC`,
+      [tenantId],
+    );
+    return results.map((r: any) => ({
+      id: r.id,
+      userId: r.user_id,
+      tenantId: r.tenant_id,
+      role: r.role,
+      status: r.status,
+      storeId: r.store_id,
+      joinedVia: r.joined_via,
+      createdAt: r.created_at,
+      email: r.email,
+      firstName: r.firstName,
+      lastName: r.lastName,
+      username: r.username,
+    }));
+  }
+
+  /**
+   * Approuver un membre en attente → passe à ACTIVE
+   */
+  async approvePendingMember(
+    userId: string,
+    tenantId: string,
+    role?: string,
+    storeId?: string,
+  ): Promise<UserTenant> {
+    const membership = await this.userTenantRepository.findOne({
+      where: { userId, tenantId, status: MembershipStatus.PENDING },
+    });
+
+    if (!membership) {
+      throw new NotFoundException('Aucune demande en attente pour cet utilisateur');
+    }
+
+    membership.status = MembershipStatus.ACTIVE;
+    if (role) membership.role = role;
+    if (storeId) membership.storeId = storeId;
+    return this.userTenantRepository.save(membership);
+  }
+
+  /**
+   * Rejeter un membre en attente → passe à INACTIVE
+   */
+  async rejectPendingMember(userId: string, tenantId: string): Promise<UserTenant> {
+    const membership = await this.userTenantRepository.findOne({
+      where: { userId, tenantId, status: MembershipStatus.PENDING },
+    });
+
+    if (!membership) {
+      throw new NotFoundException('Aucune demande en attente pour cet utilisateur');
+    }
+
+    membership.status = MembershipStatus.INACTIVE;
+    return this.userTenantRepository.save(membership);
   }
 }

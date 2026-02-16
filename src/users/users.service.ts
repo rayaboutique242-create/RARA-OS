@@ -12,7 +12,18 @@ export class UsersService {
     ) {}
 
     async findByEmail(email: string): Promise<User | null> {
-        return this.usersRepository.findOne({ where: { email } });
+        const rawEmail = (email || '').trim();
+        const normalizedEmail = rawEmail.toLowerCase();
+        if (!rawEmail) return null;
+
+        const exact = await this.usersRepository.findOne({ where: { email: rawEmail } });
+        if (exact) return exact;
+
+        return this.usersRepository
+            .createQueryBuilder('user')
+            .where('LOWER(user.email) = :email', { email: normalizedEmail })
+            .orderBy('user.createdAt', 'DESC')
+            .getOne();
     }
 
     async findById(id: string): Promise<User | null> {
@@ -24,6 +35,9 @@ export class UsersService {
     }
 
     async create(userData: Partial<User>): Promise<User> {
+        if (typeof userData.email === 'string') {
+            userData.email = userData.email.trim().toLowerCase();
+        }
         const user = this.usersRepository.create(userData);
         return this.usersRepository.save(user);
     }
@@ -52,6 +66,9 @@ export class UsersService {
         }
         if (query.status) {
             qb.andWhere('user.status = :status', { status: query.status });
+        } else {
+            // By default, only return active users (hide deactivated/deleted)
+            qb.andWhere('user.status = :defaultStatus', { defaultStatus: 'active' });
         }
         if (query.search) {
             qb.andWhere(

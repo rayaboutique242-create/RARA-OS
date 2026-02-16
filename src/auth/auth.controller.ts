@@ -12,6 +12,7 @@ import {
   Request,
   Res,
   Query,
+  UnauthorizedException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,7 +22,7 @@ import {
   ApiBearerAuth,
   ApiQuery,
 } from '@nestjs/swagger';
-import type { Response } from 'express';
+import type { Request as ExpressRequest, Response } from 'express';
 import { AuthService } from './auth.service';
 import { OtpService } from './otp.service';
 import { LoginDto } from './dto/login.dto';
@@ -41,11 +42,35 @@ import { Throttle } from '@nestjs/throttler';
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
+  private readonly COOKIE_NAME = 'raya_rt';
+
   constructor(
     private authService: AuthService,
     private otpService: OtpService,
     private configService: ConfigService,
   ) {}
+
+  /** Set refresh token as HttpOnly cookie */
+  private setRefreshCookie(res: Response, refreshToken: string) {
+    const maxAge = (this.configService.get<number>('JWT_REFRESH_EXPIRES_IN', 604800)) * 1000;
+    res.cookie(this.COOKIE_NAME, refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',      // cross-origin (Vercel ↔ Railway)
+      path: '/api/auth',     // only sent to auth endpoints
+      maxAge,
+    });
+  }
+
+  /** Clear the refresh token cookie */
+  private clearRefreshCookie(res: Response) {
+    res.clearCookie(this.COOKIE_NAME, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      path: '/api/auth',
+    });
+  }
 
   // ==================== LOGIN / REGISTER ====================
 
@@ -60,11 +85,14 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Connexion réussie (tokens + user + sessionId)' })
   @ApiResponse({ status: 401, description: 'Identifiants invalides' })
   @ApiResponse({ status: 403, description: 'Compte verrouillé' })
-  async login(@Body() loginDto: LoginDto, @Request() req) {
-    return this.authService.login(loginDto, {
+  async login(@Body() loginDto: LoginDto, @Request() req, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.login(loginDto, {
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
     });
+    // Set refresh token in HttpOnly cookie AND return in body (cross-origin fallback)
+    this.setRefreshCookie(res, result.refreshToken);
+    return result;
   }
 
   @Post('register')
@@ -76,11 +104,13 @@ export class AuthController {
   })
   @ApiResponse({ status: 201, description: 'Inscription réussie' })
   @ApiResponse({ status: 400, description: 'Email déjà utilisé' })
-  async register(@Body() registerDto: RegisterDto, @Request() req) {
-    return this.authService.register(registerDto, {
+  async register(@Body() registerDto: RegisterDto, @Request() req, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.register(registerDto, {
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
     });
+    this.setRefreshCookie(res, result.refreshToken);
+    return result;
   }
 
   // ==================== ACTIVATION CODE ====================
@@ -95,7 +125,7 @@ export class AuthController {
   @ApiBody({ 
     schema: { 
       properties: { 
-        code: { type: 'string', example: 'RAYA2026', description: 'Code d\'activation fourni' } 
+        code: { type: 'string', example: 'RAYAMANAGER2026', description: 'Code d\'activation fourni' } 
       },
       required: ['code']
     } 
@@ -103,7 +133,7 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Code valide' })
   @ApiResponse({ status: 400, description: 'Code invalide' })
   async verifyActivationCode(@Body('code') code: string) {
-    const validCode = this.configService.get<string>('APP_ACTIVATION_CODE', 'RAYA2026');
+    const validCode = this.configService.get<string>('APP_ACTIVATION_CODE', 'RAYAMANAGER2026');
     const isValid = code && code.toUpperCase().trim() === validCode.toUpperCase().trim();
     
     if (!isValid) {
@@ -131,7 +161,7 @@ export class AuthController {
   @ApiBody({ 
     schema: { 
       properties: { 
-        activationCode: { type: 'string', example: 'RAYA2026', description: 'Code d\'activation' },
+        activationCode: { type: 'string', example: 'RAYAMANAGER2026', description: 'Code d\'activation' },
         tenantName: { type: 'string', example: 'Mon Entreprise', description: 'Nom de l\'entreprise' },
         tenantCode: { type: 'string', example: 'MYCOMPANY', description: 'Code unique du tenant (optionnel)' },
         email: { type: 'string', example: 'admin@example.com', description: 'Email de l\'admin' },
@@ -140,6 +170,8 @@ export class AuthController {
         lastName: { type: 'string', example: 'Doe', description: 'Nom' },
         currency: { type: 'string', example: 'XOF', default: 'XOF' },
         timezone: { type: 'string', example: 'Africa/Abidjan', default: 'Africa/Abidjan' },
+        city: { type: 'string', example: 'Abidjan', description: 'Ville du point de vente' },
+        storeName: { type: 'string', example: 'Boutique Plateau', description: 'Nom du point de vente' },
       },
       required: ['activationCode', 'tenantName', 'email', 'password']
     } 
@@ -157,11 +189,15 @@ export class AuthController {
     lastName?: string;
     currency?: string;
     timezone?: string;
-  }, @Request() req) {
-    return this.authService.bootstrap(body, {
+    city?: string;
+    storeName?: string;
+  }, @Request() req, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.bootstrap(body, {
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
     });
+    this.setRefreshCookie(res, result.refreshToken);
+    return result;
   }
 
   // ==================== PROFILE ====================
@@ -191,11 +227,23 @@ export class AuthController {
   @ApiBody({ schema: { properties: { refreshToken: { type: 'string' } } } })
   @ApiResponse({ status: 200, description: 'Nouveaux accessToken + refreshToken' })
   @ApiResponse({ status: 401, description: 'Token invalide ou réutilisé' })
-  async refresh(@Body('refreshToken') refreshToken: string, @Request() req) {
-    return this.authService.refreshToken(refreshToken, {
+  async refresh(
+    @Body('refreshToken') bodyToken: string,
+    @Request() req,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    // Read refresh token from HttpOnly cookie first, then fallback to body (backward compat)
+    const refreshToken = req.cookies?.[this.COOKIE_NAME] || bodyToken;
+    if (!refreshToken) {
+      throw new UnauthorizedException('Aucun refresh token fourni');
+    }
+    const result = await this.authService.refreshToken(refreshToken, {
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
     });
+    // Set rotated refresh token in cookie AND return in body (cross-origin fallback)
+    this.setRefreshCookie(res, result.refreshToken);
+    return result;
   }
 
   // ==================== LOGOUT ====================
@@ -208,8 +256,11 @@ export class AuthController {
   })
   @ApiBody({ schema: { properties: { sessionId: { type: 'string' } } }, required: false })
   @ApiResponse({ status: 200, description: 'Déconnexion réussie' })
-  async logout(@Request() req, @Body('sessionId') sessionId?: string) {
-    return this.authService.logout(req.user.id, sessionId);
+  async logout(@Request() req, @Body('sessionId') sessionId?: string, @Res({ passthrough: true }) res?: Response) {
+    const result = await this.authService.logout(req.user.id, sessionId);
+    // Clear the HttpOnly refresh token cookie
+    if (res) this.clearRefreshCookie(res);
+    return result;
   }
 
   @Post('logout-all')  @SkipTenantCheck()  @HttpCode(HttpStatus.OK)
@@ -219,8 +270,10 @@ export class AuthController {
     description: 'Révoque toutes les sessions actives de l\'utilisateur.',
   })
   @ApiResponse({ status: 200, description: 'Toutes les sessions révoquées' })
-  async logoutAll(@Request() req) {
-    return this.authService.logoutAll(req.user.id);
+  async logoutAll(@Request() req, @Res({ passthrough: true }) res?: Response) {
+    const result = await this.authService.logoutAll(req.user.id);
+    if (res) this.clearRefreshCookie(res);
+    return result;
   }
 
   // ==================== PASSWORD RESET ====================

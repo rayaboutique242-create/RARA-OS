@@ -65,6 +65,7 @@ import { SupportModule } from './support/support.module';
 // NEW: Generic Data Sync
 import { SyncModule } from './sync/sync.module';
 import { TenantData } from './sync/entities/tenant-data.entity';
+import { SyncValidationService } from './sync/sync-validation.service';
 // Entities imports
 import { ServiceOffering } from './appointments/entities/service-offering.entity';
 import { TimeSlot } from './appointments/entities/time-slot.entity';
@@ -400,6 +401,7 @@ import { CreateTenantData1739300000000 } from './database/migrations/17393000000
   controllers: [AppController],
   providers: [
     AppService,
+    SyncValidationService,
     // Global guards — applied to ALL routes (use @Public / @SkipTenantCheck to exempt)
     // Order matters: JWT first → Roles → Tenant
     { provide: APP_GUARD, useClass: JwtAuthGuard },

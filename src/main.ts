@@ -4,6 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import compression from 'compression';
+import cookieParser from 'cookie-parser';
 import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
@@ -29,6 +30,7 @@ async function bootstrap() {
   // ==================== PAYLOAD SIZE: 10MB for sync ====================
   app.use(json({ limit: '10mb' }));
   app.use(urlencoded({ extended: true, limit: '10mb' }));
+  app.use(cookieParser());
 
   // ==================== DB CONFIG LOG ====================
   const dbSync = process.env.DB_SYNCHRONIZE || 'false';

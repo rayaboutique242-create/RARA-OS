@@ -80,6 +80,27 @@ export class UserTenantsController {
     return this.userTenantsService.findTenantMembers(tenantId, includeInactive === 'true');
   }
 
+  @Get('my-status')
+  @SkipTenantCheck()
+  @ApiOperation({ summary: 'Vérifier mon statut de membership (ACTIVE/PENDING/etc)' })
+  @ApiResponse({ status: 200, description: 'Statut de membership' })
+  async getMyMembershipStatus(@Request() req) {
+    const userId = req.user?.sub || req.user?.id;
+    const tenantId = req.headers['x-tenant-id'] || req.user?.tenantId;
+    if (!tenantId) return { status: 'NO_TENANT', role: null, tenantId: null };
+    const result = await this.userTenantsService.getMyMembershipStatus(userId, tenantId);
+    if (!result) return { status: 'NO_MEMBERSHIP', role: null, tenantId };
+    return result;
+  }
+
+  @Get('members/pending')
+  @ApiOperation({ summary: 'Liste des membres en attente d\'approbation' })
+  @ApiResponse({ status: 200, description: 'Liste des membres PENDING' })
+  async getPendingMembers(@Request() req) {
+    const tenantId = req.headers['x-tenant-id'] || req.user?.tenantId;
+    return this.userTenantsService.findPendingMembers(tenantId);
+  }
+
   @Get('members/count')
   @ApiOperation({ summary: 'Nombre de membres par rÃƒÂ´le' })
   @ApiResponse({ status: 200, description: 'Statistiques des membres' })
@@ -137,12 +158,34 @@ export class UserTenantsController {
   }
 
   @Patch('members/:userId/reactivate')
-  @ApiOperation({ summary: 'RÃƒÂ©activer un membre suspendu' })
+  @ApiOperation({ summary: 'Réactiver un membre suspendu' })
   @ApiParam({ name: 'userId', description: 'ID de l\'utilisateur' })
-  @ApiResponse({ status: 200, description: 'Membre rÃƒÂ©activÃƒÂ©' })
+  @ApiResponse({ status: 200, description: 'Membre réactivé' })
   async reactivateMember(@Request() req, @Param('userId') userId: string) {
     const tenantId = req.headers['x-tenant-id'] || req.user?.tenantId;
     return this.userTenantsService.reactivateMember(userId, tenantId);
+  }
+
+  @Patch('members/:userId/approve')
+  @ApiOperation({ summary: 'Approuver un membre en attente' })
+  @ApiParam({ name: 'userId', description: 'ID de l\'utilisateur' })
+  @ApiResponse({ status: 200, description: 'Membre approuvé' })
+  async approvePendingMember(
+    @Request() req,
+    @Param('userId') userId: string,
+    @Body() body: { role?: string; storeId?: string },
+  ) {
+    const tenantId = req.headers['x-tenant-id'] || req.user?.tenantId;
+    return this.userTenantsService.approvePendingMember(userId, tenantId, body.role, body.storeId);
+  }
+
+  @Patch('members/:userId/reject')
+  @ApiOperation({ summary: 'Rejeter un membre en attente' })
+  @ApiParam({ name: 'userId', description: 'ID de l\'utilisateur' })
+  @ApiResponse({ status: 200, description: 'Membre rejeté' })
+  async rejectPendingMember(@Request() req, @Param('userId') userId: string) {
+    const tenantId = req.headers['x-tenant-id'] || req.user?.tenantId;
+    return this.userTenantsService.rejectPendingMember(userId, tenantId);
   }
 
   @Delete('members/:userId')

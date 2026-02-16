@@ -21,7 +21,9 @@ import { RegisterDto } from './dto/register.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { Role } from '../common/constants/roles';
 import { Tenant } from '../tenants/entities/tenant.entity';
+import { Store } from '../tenants/entities/store.entity';
 import { UserTenantsService } from '../user-tenants/user-tenants.service';
+import { MembershipStatus } from '../user-tenants/entities/user-tenant.entity';
 
 export interface RequestMeta {
   ipAddress?: string;
@@ -38,6 +40,8 @@ export interface BootstrapDto {
   lastName?: string;
   currency?: string;
   timezone?: string;
+  city?: string;
+  storeName?: string;
 }
 
 @Injectable()
@@ -54,12 +58,18 @@ export class AuthService {
     private emailService: EmailService,
     private userTenantsService: UserTenantsService,
     @InjectRepository(Tenant) private tenantRepository: Repository<Tenant>,
+    @InjectRepository(Store) private storeRepository: Repository<Store>,
   ) {}
+
+  private normalizeEmail(email: string): string {
+    return (email || '').trim().toLowerCase();
+  }
 
   // ==================== LOGIN ====================
 
   async login(loginDto: LoginDto, meta: RequestMeta = {}) {
-    const { email, password } = loginDto;
+    const password = loginDto.password;
+    const email = this.normalizeEmail(loginDto.email);
 
     const user = await this.usersService.findByEmail(email);
     if (!user) {
@@ -91,6 +101,18 @@ export class AuthService {
 
     if (user.status !== 'active') {
       throw new UnauthorizedException('Compte désactivé');
+    }
+
+    // Check tenant status — reject login if tenant is INACTIVE or SUSPENDED
+    if (user.tenantId) {
+      const tenant = await this.tenantRepository.findOne({ where: { id: Number(user.tenantId) } });
+      if (tenant && (tenant.status === 'INACTIVE' || tenant.status === 'SUSPENDED')) {
+        throw new UnauthorizedException(
+          tenant.status === 'INACTIVE'
+            ? 'Ce compte entreprise a été supprimé.'
+            : 'Ce compte entreprise est suspendu. Contactez le support.',
+        );
+      }
     }
 
     // Reset failed attempts on success
@@ -138,36 +160,90 @@ export class AuthService {
   // ==================== REGISTER ====================
 
   async register(registerDto: RegisterDto, meta: RequestMeta = {}) {
-    const existingUser = await this.usersService.findByEmail(registerDto.email);
+    const normalizedEmail = this.normalizeEmail(registerDto.email);
+    registerDto.email = normalizedEmail;
+    const existingUser = await this.usersService.findByEmail(normalizedEmail);
+    
+    let user;
+    
     if (existingUser) {
-      throw new BadRequestException('Email déjà utilisé');
-    }
-
-    const passwordHash = await bcrypt.hash(registerDto.password, 10);
-
-    // Auto-generate username if not provided
-    let username = registerDto.username;
-    if (!username) {
-      if (registerDto.firstName && registerDto.lastName) {
-        username = `${registerDto.firstName.toLowerCase()}${registerDto.lastName.toLowerCase()}`.replace(/\s+/g, '');
+      // If the existing user is inactive, reactivate them instead of rejecting
+      if (existingUser.status === 'inactive') {
+        this.logger.log(`Reactivating inactive user ${existingUser.email} (id: ${existingUser.id})`);
+        const passwordHash = await bcrypt.hash(registerDto.password, 10);
+        await this.usersService.updateProfile(existingUser.id, {
+          status: 'active',
+          passwordHash,
+          firstName: registerDto.firstName || existingUser.firstName,
+          lastName: registerDto.lastName || existingUser.lastName,
+          phone: registerDto.phone || existingUser.phone,
+          role: registerDto.role || existingUser.role,
+          tenantId: registerDto.tenantId || existingUser.tenantId,
+        });
+        user = await this.usersService.findById(existingUser.id);
+        
+        // Reactivate membership if exists, or create a new one
+        if (registerDto.tenantId) {
+          try {
+            await this.userTenantsService.createMembership(
+              user.id,
+              registerDto.tenantId,
+              registerDto.role || 'VENDEUR',
+              'ADMIN_ADDED',
+              { status: MembershipStatus.ACTIVE },
+            );
+            this.logger.log(`Reactivated/created membership for ${user.email} in tenant ${registerDto.tenantId}`);
+          } catch (membershipErr) {
+            this.logger.warn(`Membership reactivation failed: ${membershipErr.message}`);
+          }
+        }
       } else {
-        username = registerDto.email.split('@')[0];
+        throw new BadRequestException('Email déjà utilisé');
       }
-      // Add random suffix to ensure uniqueness
-      username = `${username}${Math.floor(Math.random() * 1000)}`;
-    }
+    } else {
+      const passwordHash = await bcrypt.hash(registerDto.password, 10);
 
-    const user = await this.usersService.create({
-      email: registerDto.email,
-      username: username,
-      passwordHash,
-      firstName: registerDto.firstName,
-      lastName: registerDto.lastName,
-      phone: registerDto.phone,
-      role: registerDto.role || Role.VENDEUR,
-      tenantId: registerDto.tenantId,
-      status: 'active',
-    });
+      // Auto-generate username if not provided
+      let username = registerDto.username;
+      if (!username) {
+        if (registerDto.firstName && registerDto.lastName) {
+          username = `${registerDto.firstName.toLowerCase()}${registerDto.lastName.toLowerCase()}`.replace(/\s+/g, '');
+        } else {
+          username = registerDto.email.split('@')[0];
+        }
+        // Add random suffix to ensure uniqueness
+        username = `${username}${Math.floor(Math.random() * 1000)}`;
+      }
+
+      user = await this.usersService.create({
+        email: normalizedEmail,
+        username: username,
+        passwordHash,
+        firstName: registerDto.firstName,
+        lastName: registerDto.lastName,
+        phone: registerDto.phone,
+        role: registerDto.role || Role.VENDEUR,
+        tenantId: registerDto.tenantId,
+        status: 'active',
+      });
+
+      // Auto-create PENDING membership if tenantId is provided (employee joining via invitation)
+      // The membership will stay PENDING until approved by PDG/Manager
+      if (registerDto.tenantId) {
+        try {
+          await this.userTenantsService.createMembership(
+            user.id,
+            registerDto.tenantId,
+            registerDto.role || 'VENDEUR',
+            'INVITATION',
+            { status: MembershipStatus.PENDING },
+          );
+          this.logger.log(`Auto-created PENDING membership for ${user.email} in tenant ${registerDto.tenantId}`);
+        } catch (membershipErr) {
+          this.logger.warn(`Auto-membership creation failed (may already exist): ${membershipErr.message}`);
+        }
+      }
+    }
 
     const tokens = await this.generateTokens(user);
 
@@ -205,14 +281,17 @@ export class AuthService {
   // ==================== BOOTSTRAP ====================
 
   async bootstrap(dto: BootstrapDto, meta: RequestMeta = {}) {
+    const normalizedEmail = this.normalizeEmail(dto.email);
+    dto.email = normalizedEmail;
+
     // 1. Verify activation code
-    const validCode = this.configService.get<string>('APP_ACTIVATION_CODE', 'RAYA2026');
+    const validCode = this.configService.get<string>('APP_ACTIVATION_CODE', 'RAYAMANAGER2026');
     if (!dto.activationCode || dto.activationCode.toUpperCase().trim() !== validCode.toUpperCase().trim()) {
       throw new BadRequestException('Code d\'activation invalide');
     }
 
     // 2. Check if email already exists
-    const existingUser = await this.usersService.findByEmail(dto.email);
+    const existingUser = await this.usersService.findByEmail(normalizedEmail);
     if (existingUser) {
       throw new ConflictException('Un compte avec cet email existe déjà');
     }
@@ -280,10 +359,43 @@ export class AuthService {
 
     this.logger.log(`Bootstrap: Created admin user ${user.email} for tenant ${savedTenant.tenantCode}`);
 
+    // 6b. Auto-create default store (POS) for the new tenant
+    const storeCode = `${tenantCode}-MAIN`;
+    const posName = dto.storeName?.trim() || `${dto.tenantName} - Principal`;
+    const defaultStore = this.storeRepository.create({
+      tenantId: String(savedTenant.id),
+      storeCode,
+      name: posName,
+      type: 'MAIN',
+      status: 'ACTIVE',
+      email: dto.email,
+      city: dto.city?.trim() || undefined,
+      country: 'CI',
+      isPOS: true,
+      managesStock: true,
+      isDefault: true,
+      currency: dto.currency || 'XOF',
+    });
+    const savedStore = await this.storeRepository.save(defaultStore);
+    this.logger.log(`Bootstrap: Created default store "${savedStore.name}" (id=${savedStore.id}) for tenant ${savedTenant.tenantCode}`);
+
+    // 6c. Create membership linking admin user to tenant + store
+    await this.userTenantsService.createMembership(
+      user.id,
+      String(savedTenant.id),
+      Role.PDG,
+      'BOOTSTRAP',
+      {
+        storeId: String(savedStore.id),
+        isDefault: true,
+      },
+    );
+    this.logger.log(`Bootstrap: Created membership for user ${user.email} → tenant ${savedTenant.tenantCode}, store ${savedStore.id}`);
+
     // 7. Generate tokens
     const tokens = await this.generateTokens(user);
 
-    const storeId = await this.resolveStoreId(user.id, user.tenantId);
+    const storeId = String(savedStore.id);
 
     const session = await this.sessionService.createSession(
       user.id,
@@ -307,6 +419,13 @@ export class AuthService {
         id: savedTenant.id,
         tenantCode: savedTenant.tenantCode,
         name: savedTenant.name,
+      },
+      store: {
+        id: savedStore.id,
+        name: savedStore.name,
+        storeCode: savedStore.storeCode,
+        city: savedStore.city || null,
+        type: savedStore.type,
       },
       user: {
         id: user.id,
@@ -414,7 +533,7 @@ export class AuthService {
   // ==================== PASSWORD RESET ====================
 
   async forgotPassword(email: string): Promise<{ message: string }> {
-    const user = await this.usersService.findByEmail(email);
+    const user = await this.usersService.findByEmail(this.normalizeEmail(email));
 
     // Always return success (prevent email enumeration)
     if (!user) {
@@ -523,7 +642,7 @@ export class AuthService {
 
     if (!user && oauthData.email) {
       // Try to find by email (account linking)
-      const existingUser = await this.usersService.findByEmail(oauthData.email);
+      const existingUser = await this.usersService.findByEmail(this.normalizeEmail(oauthData.email));
 
       if (existingUser) {
         // Link OAuth to existing account
@@ -541,9 +660,10 @@ export class AuthService {
     if (!user) {
       // Create new user from OAuth data
       const defaultTenantId = this.configService.get<string>('DEFAULT_TENANT_ID', 'default');
+      const normalizedOAuthEmail = this.normalizeEmail(oauthData.email);
       user = await this.usersService.create({
-        email: oauthData.email,
-        username: oauthData.username || oauthData.email?.split('@')[0] || `user_${oauthData.providerId}`,
+        email: normalizedOAuthEmail,
+        username: oauthData.username || normalizedOAuthEmail?.split('@')[0] || `user_${oauthData.providerId}`,
         firstName: oauthData.firstName,
         lastName: oauthData.lastName,
         avatarUrl: oauthData.avatarUrl,
