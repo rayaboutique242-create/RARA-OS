@@ -360,7 +360,7 @@ export class InvitationsService implements OnModuleInit {
 
     try {
       const results = await this.joinRequestRepository.query(
-        `SELECT jr.*, u.email AS "userEmail", u."firstName" AS "userFirstName", u."lastName" AS "userLastName", u.username AS "userUsername"
+        `SELECT jr.*, u.email AS "userEmail", u.first_name AS "userFirstName", u.last_name AS "userLastName", u.username AS "userUsername"
          FROM join_requests jr
          LEFT JOIN users u ON CAST(jr.user_id AS VARCHAR) = CAST(u.id AS VARCHAR)
          WHERE jr.tenant_id = $1 ${statusFilter}
