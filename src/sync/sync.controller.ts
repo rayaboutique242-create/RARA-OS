@@ -1,5 +1,6 @@
-import { Controller, Get, Put, Patch, Delete, Body, Param, Query, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Put, Patch, Delete, Body, Param, Query, Request, HttpCode, HttpStatus, Header } from '@nestjs/common';
 import { SyncService } from './sync.service';
+import { CacheControl } from '../performance/interceptors/cache-headers.interceptor';
 
 @Controller('sync')
 export class SyncController {
@@ -10,19 +11,36 @@ export class SyncController {
    * Returns: { collections: { products: [...], orders: [...], ... } }
    */
   @Get()
-  async getAll(@Request() req: any) {
+  async getAll(@Request() req: any, @Query('since') since?: string) {
     const tenantId = req.user?.tenantId || 'default';
-    const result = await this.syncService.getAll(tenantId);
+    const sinceDate = since ? new Date(since) : undefined;
+    const result = await this.syncService.getAll(
+      tenantId,
+      sinceDate && !isNaN(sinceDate.getTime()) ? { since: sinceDate } : undefined,
+    );
     return { tenantId, collections: result.collections, versions: result.versions };
   }
 
   /**
    * GET /sync/meta - Get metadata (collection names, counts, versions)
+   * Lightweight endpoint — cached 30s, supports ETag + If-None-Match (304)
    */
   @Get('meta')
-  async getMetadata(@Request() req: any) {
+  @CacheControl(30, true)
+  async getMetadata(
+    @Request() req: any,
+    @Query('since') since?: string,
+    @Query('includeCounts') includeCounts?: string,
+  ) {
     const tenantId = req.user?.tenantId || 'default';
-    const meta = await this.syncService.getMetadata(tenantId);
+    const sinceDate = since ? new Date(since) : undefined;
+    const meta = await this.syncService.getMetadata(
+      tenantId,
+      {
+        since: sinceDate && !isNaN(sinceDate.getTime()) ? sinceDate : undefined,
+        includeCounts: includeCounts !== 'false',
+      },
+    );
     return { tenantId, collections: meta };
   }
 
@@ -30,10 +48,26 @@ export class SyncController {
    * GET /sync/:collection - Get one collection
    */
   @Get(':collection')
-  async getCollection(@Request() req: any, @Param('collection') collection: string) {
+  async getCollection(
+    @Request() req: any,
+    @Param('collection') collection: string,
+    @Query('offset') offset?: string,
+    @Query('limit') limit?: string,
+  ) {
     const tenantId = req.user?.tenantId || 'default';
+    const parsedOffset = Number(offset);
+    const parsedLimit = Number(limit);
+    const hasPaging = Number.isFinite(parsedOffset) || Number.isFinite(parsedLimit);
+    if (hasPaging) {
+      const paged = await this.syncService.getCollectionPaged(tenantId, collection, {
+        offset: Number.isFinite(parsedOffset) ? parsedOffset : 0,
+        limit: Number.isFinite(parsedLimit) ? parsedLimit : 1000,
+      });
+      return { tenantId, ...paged };
+    }
+
     const data = await this.syncService.getCollection(tenantId, collection);
-    return { tenantId, collection, count: data.length, data };
+    return { tenantId, collection, count: data.length, data, offset: 0, limit: data.length, hasMore: false };
   }
 
   /**

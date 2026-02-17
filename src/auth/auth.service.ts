@@ -141,9 +141,19 @@ export class AuthService {
 
     const storeId = await this.resolveStoreId(user.id, user.tenantId);
 
+    // Include membership status in login response so frontend skips extra /my-status call
+    let membershipStatus: string | null = null;
+    if (user.tenantId) {
+      try {
+        const ms = await this.userTenantsService.getMyMembershipStatus(user.id, user.tenantId);
+        membershipStatus = ms?.status || 'ACTIVE';
+      } catch { membershipStatus = 'ACTIVE'; }
+    }
+
     return {
       ...tokens,
       sessionId: session.id,
+      membershipStatus,
       user: {
         id: user.id,
         email: user.email,

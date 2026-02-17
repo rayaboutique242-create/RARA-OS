@@ -46,16 +46,16 @@ export class SyncService implements OnModuleInit {
   }
 
   /** GET all collections for a tenant */
-  async getAll(tenantId: string): Promise<{ collections: Record<string, any[]>; versions: Record<string, number> }> {
-    const rows = await this.repo.find({ where: { tenantId } });
+  async getAll(tenantId: string, options?: { since?: Date }): Promise<{ collections: Record<string, any[]>; versions: Record<string, number> }> {
+    const qb = this.repo.createQueryBuilder('td').where('td.tenantId = :tenantId', { tenantId });
+    if (options?.since) {
+      qb.andWhere('td.updatedAt > :since', { since: options.since });
+    }
+    const rows = await qb.getMany();
     const collections: Record<string, any[]> = {};
     const versions: Record<string, number> = {};
     for (const row of rows) {
-      try {
-        collections[row.collection] = JSON.parse(row.data);
-      } catch {
-        collections[row.collection] = [];
-      }
+      collections[row.collection] = this.safeParseArray(row.data);
       versions[row.collection] = row.version || 0;
     }
     return { collections, versions };
@@ -65,11 +65,38 @@ export class SyncService implements OnModuleInit {
   async getCollection(tenantId: string, collection: string): Promise<any[]> {
     const row = await this.repo.findOne({ where: { tenantId, collection } });
     if (!row) return [];
-    try {
-      return JSON.parse(row.data);
-    } catch {
-      return [];
-    }
+    return this.safeParseArray(row.data);
+  }
+
+  async getCollectionPaged(
+    tenantId: string,
+    collection: string,
+    options?: { offset?: number; limit?: number },
+  ): Promise<{
+    collection: string;
+    version: number;
+    updatedAt: Date | null;
+    count: number;
+    data: any[];
+    offset: number;
+    limit: number;
+    hasMore: boolean;
+  }> {
+    const row = await this.repo.findOne({ where: { tenantId, collection } });
+    const fullData = row ? this.safeParseArray(row.data) : [];
+    const offset = Math.max(0, options?.offset || 0);
+    const limit = Math.max(1, Math.min(5000, options?.limit || 1000));
+    const data = fullData.slice(offset, offset + limit);
+    return {
+      collection,
+      version: row?.version || 0,
+      updatedAt: row?.updatedAt || null,
+      count: fullData.length,
+      data,
+      offset,
+      limit,
+      hasMore: offset + data.length < fullData.length,
+    };
   }
 
   /** PUT (upsert) one collection for a tenant */
@@ -150,12 +177,27 @@ export class SyncService implements OnModuleInit {
   }
 
   /** Get metadata (list of collections with counts and versions) */
-  async getMetadata(tenantId: string): Promise<Array<{ collection: string; count: number; version: number; updatedAt: Date }>> {
-    const rows = await this.repo.find({ where: { tenantId } });
+  async getMetadata(
+    tenantId: string,
+    options?: { since?: Date; includeCounts?: boolean },
+  ): Promise<Array<{ collection: string; count: number; version: number; updatedAt: Date }>> {
+    const qb = this.repo.createQueryBuilder('td').where('td.tenantId = :tenantId', { tenantId });
+    if (options?.since) {
+      qb.andWhere('td.updatedAt > :since', { since: options.since });
+    }
+    const rows = await qb.getMany();
     return rows.map(row => {
-      let count = 0;
-      try { count = JSON.parse(row.data).length; } catch {}
+      const count = options?.includeCounts === false ? -1 : this.safeParseArray(row.data).length;
       return { collection: row.collection, count, version: row.version, updatedAt: row.updatedAt };
     });
+  }
+
+  private safeParseArray(raw: string): any[] {
+    try {
+      const parsed = JSON.parse(raw || '[]');
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   }
 }
