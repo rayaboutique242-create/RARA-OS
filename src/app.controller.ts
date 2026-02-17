@@ -3,6 +3,7 @@ import { AppService } from './app.service';
 import { Public } from './auth/decorators/public.decorator';
 import { SkipTenantCheck } from './common/decorators/skip-tenant-check.decorator';
 import { DataSource } from 'typeorm';
+import { CacheControl } from './performance/interceptors/cache-headers.interceptor';
 import {
   SyncPutCollectionDto,
   SyncPutBulkDto,
@@ -139,13 +140,20 @@ export class AppController {
 
   @Get('sync')
   @SkipTenantCheck()
-  async syncGetAll(@Request() req: any) {
+  async syncGetAll(@Request() req: any, @Query('since') since?: string) {
     await this.ensureTable();
     const tenantId = req.user?.tenantId || 'default';
-    const rows = await this.dataSource.query(
-      'SELECT "collection", "data", "version" FROM "tenant_data" WHERE "tenantId" = $1',
-      [tenantId]
-    );
+    const sinceDate = since ? new Date(since) : undefined;
+    const hasSince = sinceDate && !isNaN(sinceDate.getTime());
+    const rows = hasSince
+      ? await this.dataSource.query(
+          'SELECT "collection", "data", "version" FROM "tenant_data" WHERE "tenantId" = $1 AND "updatedAt" > $2',
+          [tenantId, sinceDate]
+        )
+      : await this.dataSource.query(
+          'SELECT "collection", "data", "version" FROM "tenant_data" WHERE "tenantId" = $1',
+          [tenantId]
+        );
     const collections: Record<string, any[]> = {};
     const versions: Record<string, number> = {};
     for (const row of rows) {
@@ -157,16 +165,26 @@ export class AppController {
 
   @Get('sync/meta')
   @SkipTenantCheck()
-  async syncGetMeta(@Request() req: any) {
+  @CacheControl(30, true)
+  async syncGetMeta(@Request() req: any, @Query('since') since?: string, @Query('includeCounts') includeCounts?: string) {
     await this.ensureTable();
     const tenantId = req.user?.tenantId || 'default';
-    const rows = await this.dataSource.query(
-      'SELECT "collection", "data", "version", "updatedAt" FROM "tenant_data" WHERE "tenantId" = $1',
-      [tenantId]
-    );
+    const sinceDate = since ? new Date(since) : undefined;
+    const hasSince = sinceDate && !isNaN(sinceDate.getTime());
+    const rows = hasSince
+      ? await this.dataSource.query(
+          'SELECT "collection", "data", "version", "updatedAt" FROM "tenant_data" WHERE "tenantId" = $1 AND "updatedAt" > $2',
+          [tenantId, sinceDate]
+        )
+      : await this.dataSource.query(
+          'SELECT "collection", "data", "version", "updatedAt" FROM "tenant_data" WHERE "tenantId" = $1',
+          [tenantId]
+        );
     const collections = rows.map((row: any) => {
-      let count = 0;
-      try { count = JSON.parse(row.data).length; } catch {}
+      let count = -1;
+      if (includeCounts !== 'false') {
+        try { count = JSON.parse(row.data).length; } catch {}
+      }
       return { collection: row.collection, count, version: row.version, updatedAt: row.updatedAt };
     });
     return { tenantId, collections };
@@ -587,16 +605,31 @@ export class AppController {
 
   @Get('sync/:collection')
   @SkipTenantCheck()
-  async syncGetCollection(@Request() req: any, @Param('collection') collection: string) {
+  async syncGetCollection(
+    @Request() req: any,
+    @Param('collection') collection: string,
+    @Query('offset') offsetStr?: string,
+    @Query('limit') limitStr?: string,
+  ) {
     await this.ensureTable();
     const tenantId = req.user?.tenantId || 'default';
     const rows = await this.dataSource.query(
-      'SELECT "data", "version" FROM "tenant_data" WHERE "tenantId" = $1 AND "collection" = $2',
+      'SELECT "data", "version", "updatedAt" FROM "tenant_data" WHERE "tenantId" = $1 AND "collection" = $2',
       [tenantId, collection]
     );
-    const data = rows.length > 0 ? (() => { try { return JSON.parse(rows[0].data); } catch { return []; } })() : [];
+    const fullData = rows.length > 0 ? (() => { try { return JSON.parse(rows[0].data); } catch { return []; } })() : [];
     const version = rows.length > 0 ? (rows[0].version || 0) : 0;
-    return { tenantId, collection, count: data.length, data, version };
+    const updatedAt = rows.length > 0 ? rows[0].updatedAt : null;
+    const parsedOffset = Number(offsetStr);
+    const parsedLimit = Number(limitStr);
+    const hasPaging = Number.isFinite(parsedOffset) || Number.isFinite(parsedLimit);
+    if (hasPaging) {
+      const offset = Number.isFinite(parsedOffset) ? Math.max(0, parsedOffset) : 0;
+      const limit = Number.isFinite(parsedLimit) ? Math.max(1, Math.min(5000, parsedLimit)) : 1000;
+      const data = fullData.slice(offset, offset + limit);
+      return { tenantId, collection, count: fullData.length, data, offset, limit, hasMore: offset + data.length < fullData.length, version, updatedAt };
+    }
+    return { tenantId, collection, count: fullData.length, data: fullData, version, updatedAt };
   }
 
   @Put('sync/:collection')
