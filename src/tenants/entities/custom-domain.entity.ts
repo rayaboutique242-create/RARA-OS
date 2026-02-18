@@ -28,8 +28,6 @@ export enum DomainType {
 }
 
 @Entity('custom_domains')
-@Index(['domain'], { unique: true })
-@Index(['tenantId'])
 @Index(['status'])
 @Index(['verificationToken'])
 export class CustomDomain {

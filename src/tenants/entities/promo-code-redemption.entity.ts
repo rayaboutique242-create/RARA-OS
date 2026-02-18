@@ -12,7 +12,6 @@ import { PromoCode } from './promo-code.entity';
 
 @Entity('saas_promo_code_redemptions')
 @Index(['tenantId'])
-@Index(['promoCodeId'])
 @Index(['tenantId', 'promoCodeId'], { unique: true })
 export class PromoCodeRedemption {
   @PrimaryGeneratedColumn()

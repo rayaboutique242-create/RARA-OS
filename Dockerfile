@@ -56,7 +56,7 @@ EXPOSE 3000
 USER nestjs
 
 # Healthcheck
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=30s --start-period=120s --retries=10 \
     CMD node -e "const http = require('http'); http.get('http://localhost:3000/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
 
 CMD ["node", "dist/main.js"]

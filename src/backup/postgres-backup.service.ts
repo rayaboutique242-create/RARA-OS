@@ -65,11 +65,14 @@ export class PostgresBackupService implements OnModuleInit {
     // Check if we're using PostgreSQL
     const dbType = this.configService.get<string>('DB_TYPE', 'better-sqlite3');
     const databaseUrl = this.configService.get<string>('DATABASE_URL');
-    const isPostgresUrl = databaseUrl?.startsWith('postgres://') || databaseUrl?.startsWith('postgresql://');
-    this.isPostgres = dbType === 'postgres' || isPostgresUrl === true;
+    const explicitHost = this.configService.get<string>('DB_HOST');
+    // When DB_HOST is explicitly set, always use postgres with explicit config
+    const isPostgresUrl = !explicitHost && (databaseUrl?.startsWith('postgres://') || databaseUrl?.startsWith('postgresql://'));
+    this.isPostgres = explicitHost ? true : (dbType === 'postgres' || isPostgresUrl === true);
 
     if (this.isPostgres) {
-      this.pgConfig = this.extractPgConfig(databaseUrl);
+      // Prefer explicit config when DB_HOST is set (avoids Railway linked vars)
+      this.pgConfig = explicitHost ? this.extractPgConfig(undefined) : this.extractPgConfig(databaseUrl);
     }
 
     // Ensure backup directory exists

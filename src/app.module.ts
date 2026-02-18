@@ -187,18 +187,23 @@ import { CreateTenantData1739300000000 } from './database/migrations/17393000000
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
+        // IMPORTANT: Ignore DATABASE_URL to avoid Railway Postgres reference variable conflicts
+        // Use explicit DB_HOST, DB_PORT, etc. for CockroachDB
         const databaseUrl = configService.get<string>('DATABASE_URL');
         // Auto-detect postgres from DATABASE_URL even if DB_TYPE not set
         const rawDbType = configService.get<string>(
           'DB_TYPE',
           'better-sqlite3',
         );
+        // Always use explicit config when DB_HOST is set to avoid Railway linked vars
+        const explicitHost = configService.get<string>('DB_HOST');
         const isPostgresUrl =
-          databaseUrl &&
+          !explicitHost && databaseUrl &&
           (databaseUrl.startsWith('postgres://') ||
             databaseUrl.startsWith('postgresql://'));
-        const dbType = isPostgresUrl ? 'postgres' : rawDbType;
-        const isPostgres = dbType === 'postgres';
+        const dbType = explicitHost ? rawDbType : (isPostgresUrl ? 'postgres' : rawDbType);
+        const isCockroachDB = dbType === 'cockroachdb';
+        const isPostgres = dbType === 'postgres' || isCockroachDB;
         const nodeEnv = configService.get<string>('NODE_ENV');
 
         // IMPORTANT: synchronize should be FALSE by default - use migrations instead
@@ -209,6 +214,9 @@ import { CreateTenantData1739300000000 } from './database/migrations/17393000000
           forceSync ||
           (configService.get<string>('DB_SYNCHRONIZE') === 'true' &&
             nodeEnv !== 'production');
+        // When force sync is enabled, drop the schema first to avoid
+        // "already exists" errors on sequences during CockroachDB synchronize retries
+        const dropSchema = forceSync && configService.get<string>('DB_DROP_SCHEMA') === 'true';
         const migrationsRun =
           configService.get<string>('DB_MIGRATIONS_RUN') === 'true';
 
@@ -313,11 +321,51 @@ import { CreateTenantData1739300000000 } from './database/migrations/17393000000
             BackfillStoreIdCustomersProducts1739200000002,
             CreateTenantData1739300000000,
           ],
-          logging: nodeEnv === 'development',
+          logging: nodeEnv === 'development' || synchronize,
           cache: { duration: 30000 },
         };
 
+        // Debug logging for production troubleshooting
+        console.log('[TypeORM Config]', JSON.stringify({
+          rawDbType, dbType, isCockroachDB, isPostgres,
+          explicitHost: !!explicitHost,
+          databaseUrl: databaseUrl ? databaseUrl.substring(0, 30) + '...' : 'none',
+          synchronize, forceSync, nodeEnv,
+          DB_DATABASE: configService.get<string>('DB_DATABASE', 'defaultdb'),
+        }));
+
         if (isPostgres) {
+          // CockroachDB: use native TypeORM cockroachdb driver
+          if (isCockroachDB && explicitHost) {
+            console.log('[TypeORM] Using COCKROACHDB driver with explicit host');
+            return {
+              ...baseConfig,
+              type: 'cockroachdb' as const,
+              host: explicitHost,
+              port: configService.get<number>('DB_PORT', 26257),
+              username: configService.get<string>('DB_USERNAME', 'raya'),
+              password: configService.get<string>('DB_PASSWORD', ''),
+              database: configService.get<string>('DB_DATABASE', 'defaultdb'),
+              ssl: { rejectUnauthorized: false },
+              timeTravelQueries: false,
+            };
+          }
+
+          // When DB_HOST is explicitly set, use explicit config
+          // This avoids Railway's injected RAILWAY_SERVICE_*_URL variables
+          if (explicitHost) {
+            return {
+              ...baseConfig,
+              type: 'postgres' as const,
+              host: explicitHost,
+              port: configService.get<number>('DB_PORT', 26257),
+              username: configService.get<string>('DB_USERNAME', 'raya'),
+              password: configService.get<string>('DB_PASSWORD', ''),
+              database: configService.get<string>('DB_DATABASE', 'defaultdb'),
+              ssl: { rejectUnauthorized: false },
+            };
+          }
+
           // Railway / cloud providers inject DATABASE_URL as a single connection string
           if (databaseUrl) {
             return {

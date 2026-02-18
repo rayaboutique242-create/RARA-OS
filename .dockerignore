@@ -84,3 +84,6 @@ __tests__
 tmp
 temp
 .cache
+_*.ts
+_*.js
+_*.log

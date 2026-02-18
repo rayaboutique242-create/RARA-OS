@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Patch, Delete, Body, Param, Query, Request, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Put, Patch, Delete, Body, Param, Query, Request, HttpCode, HttpStatus, Header } from '@nestjs/common';
 import { SyncService } from './sync.service';
 import { CacheControl } from '../performance/interceptors/cache-headers.interceptor';
 

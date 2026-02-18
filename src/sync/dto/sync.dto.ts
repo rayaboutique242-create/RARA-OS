@@ -33,7 +33,7 @@ export const ALLOWED_COLLECTIONS = [
   'favoritedPaymentMethods',
   // Deliveries & routes
   'independentDeliveryMen', 'deliveryRoutes', 'routeOptimizations', 'routeStops',
-  'transferReceipts', 'receptionMedia', 'lastKnownDeliveryIds',
+  'transferReceipts', 'stockTransfers', 'receptionMedia', 'lastKnownDeliveryIds',
   // Stock & inventory
   'stockAnalysisABC', 'stockTrendHistory', 'stockPredictions',
   'expiryAlerts', 'reorderSuggestions',

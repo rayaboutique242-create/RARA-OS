@@ -63,17 +63,27 @@ export class DatabaseHealthIndicator extends HealthIndicator {
         });
       }
 
-      // PostgreSQL health check
+      // PostgreSQL/CockroachDB health check
       const versionResult = await this.dataSource.query('SELECT version()');
-      const dbSizeResult = await this.dataSource.query(
-        "SELECT pg_size_pretty(pg_database_size(current_database())) as size",
-      );
+      const isCockroachDB = versionResult?.[0]?.version?.includes('CockroachDB');
+      
+      let databaseSize = 'N/A';
+      if (!isCockroachDB) {
+        try {
+          const dbSizeResult = await this.dataSource.query(
+            "SELECT pg_size_pretty(pg_database_size(current_database())) as size",
+          );
+          databaseSize = dbSizeResult?.[0]?.size;
+        } catch {
+          // CockroachDB doesn't support pg_size_pretty
+        }
+      }
 
       return this.getStatus(key, true, {
         connected: true,
-        type: 'postgres',
+        type: isCockroachDB ? 'cockroachdb' : 'postgres',
         version: versionResult?.[0]?.version?.split(' ').slice(0, 2).join(' '),
-        databaseSize: dbSizeResult?.[0]?.size,
+        databaseSize,
       });
     } catch (error) {
       if (error instanceof HealthCheckError) throw error;
@@ -141,11 +151,23 @@ export class DatabaseHealthIndicator extends HealthIndicator {
       return { vacuumed: true, analyzed: true, sizeBefore: `${sizeBefore}MB`, sizeAfter: `${sizeAfter}MB` };
     }
 
-    // PostgreSQL: VACUUM ANALYZE
-    const sizeBefore = await this.dataSource.query("SELECT pg_size_pretty(pg_database_size(current_database())) as size");
+    // PostgreSQL/CockroachDB: ANALYZE only (VACUUM not supported in CockroachDB tx)
+    let sizeBefore = 'N/A';
+    let sizeAfter = 'N/A';
+    try {
+      const sizeResult = await this.dataSource.query("SELECT pg_size_pretty(pg_database_size(current_database())) as size");
+      sizeBefore = sizeResult?.[0]?.size;
+    } catch {
+      // CockroachDB doesn't support pg_size_pretty
+    }
     await this.dataSource.query('ANALYZE');
-    const sizeAfter = await this.dataSource.query("SELECT pg_size_pretty(pg_database_size(current_database())) as size");
-    return { vacuumed: false, analyzed: true, sizeBefore: sizeBefore?.[0]?.size, sizeAfter: sizeAfter?.[0]?.size };
+    try {
+      const sizeResult = await this.dataSource.query("SELECT pg_size_pretty(pg_database_size(current_database())) as size");
+      sizeAfter = sizeResult?.[0]?.size;
+    } catch {
+      // CockroachDB doesn't support pg_size_pretty
+    }
+    return { vacuumed: false, analyzed: true, sizeBefore, sizeAfter };
   }
 
   /**
@@ -156,10 +178,26 @@ export class DatabaseHealthIndicator extends HealthIndicator {
     const isSqlite = dbType === 'better-sqlite3' || dbType === 'sqlite';
 
     if (!isSqlite) {
-      // PostgreSQL stats
-      const tables = await this.dataSource.query(
-        "SELECT tablename as name FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename",
-      );
+      // PostgreSQL/CockroachDB stats
+      const versionResult = await this.dataSource.query('SELECT version()');
+      const isCockroachDB = versionResult?.[0]?.version?.includes('CockroachDB');
+      
+      // For CockroachDB, use information_schema instead of pg_tables
+      let tables: any[] = [];
+      try {
+        if (isCockroachDB) {
+          tables = await this.dataSource.query(
+            "SELECT table_name as name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY table_name",
+          );
+        } else {
+          tables = await this.dataSource.query(
+            "SELECT tablename as name FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename",
+          );
+        }
+      } catch {
+        tables = [];
+      }
+      
       const tableStats: Record<string, number> = {};
       for (const t of tables) {
         try {
@@ -169,14 +207,23 @@ export class DatabaseHealthIndicator extends HealthIndicator {
           tableStats[t.name] = -1;
         }
       }
-      const versionResult = await this.dataSource.query('SELECT version()');
-      const sizeResult = await this.dataSource.query("SELECT pg_size_pretty(pg_database_size(current_database())) as size");
+      
+      let size = 'N/A';
+      if (!isCockroachDB) {
+        try {
+          const sizeResult = await this.dataSource.query("SELECT pg_size_pretty(pg_database_size(current_database())) as size");
+          size = sizeResult?.[0]?.size;
+        } catch {
+          // CockroachDB doesn't support pg_size_pretty
+        }
+      }
+      
       return {
-        type: 'postgres',
+        type: isCockroachDB ? 'cockroachdb' : 'postgres',
         tables: tableStats,
         totalTables: tables.length,
         totalRecords: Object.values(tableStats).reduce((sum: number, v: number) => sum + Math.max(v, 0), 0),
-        size: sizeResult?.[0]?.size,
+        size,
         version: versionResult?.[0]?.version?.split(' ').slice(0, 2).join(' '),
       };
     }

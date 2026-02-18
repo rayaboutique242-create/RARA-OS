@@ -34,10 +34,10 @@ export class Restore {
   @Column({ type: 'varchar', length: 100 })
   restoreCode: string;
 
-  @Column({ type: 'integer' })
-  backupId: number;
+  @Column({ type: 'integer', nullable: true })
+  backupId: number | null;
 
-  @ManyToOne(() => Backup, { onDelete: 'SET NULL' })
+  @ManyToOne(() => Backup, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'backupId' })
   backup: Backup;
 

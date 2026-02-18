@@ -34,7 +34,6 @@ export enum PromoDuration {
 }
 
 @Entity('saas_promo_codes')
-@Index(['code'], { unique: true })
 @Index(['status'])
 @Index(['plan'])
 export class PromoCode {
