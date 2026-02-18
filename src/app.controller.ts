@@ -634,6 +634,7 @@ export class AppController {
     @Param('collection') collection: string,
     @Query('offset') offsetStr?: string,
     @Query('limit') limitStr?: string,
+    @Query('light') light?: string,
   ) {
     await this.ensureTable();
     const tenantId = req.user?.tenantId || 'default';
@@ -651,6 +652,14 @@ export class AppController {
           }
         })()
       : [];
+    const isLight = light === '1' || light === 'true';
+    const projectLight = (arr: any[]) => {
+      if (!isLight || collection !== 'products' || !Array.isArray(arr)) return arr;
+      return arr.map((item: any) => {
+        if (!item || typeof item !== 'object') return item;
+        return { ...item, image: null };
+      });
+    };
     const version = rows.length > 0 ? (rows[0].version || 0) : 0;
     const updatedAt = rows.length > 0 ? rows[0].updatedAt : null;
     const parsedOffset = Number(offsetStr);
@@ -659,10 +668,10 @@ export class AppController {
     if (hasPaging) {
       const offset = Number.isFinite(parsedOffset) ? Math.max(0, parsedOffset) : 0;
       const limit = Number.isFinite(parsedLimit) ? Math.max(1, Math.min(5000, parsedLimit)) : 1000;
-      const data = fullData.slice(offset, offset + limit);
+      const data = projectLight(fullData.slice(offset, offset + limit));
       return { tenantId, collection, count: fullData.length, data, offset, limit, hasMore: offset + data.length < fullData.length, version, updatedAt };
     }
-    return { tenantId, collection, count: fullData.length, data: fullData, version, updatedAt };
+    return { tenantId, collection, count: fullData.length, data: projectLight(fullData), version, updatedAt };
   }
 
   @Put('sync/:collection')
