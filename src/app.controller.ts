@@ -248,6 +248,7 @@ export class AppController {
 
     const qr = this.dataSource.createQueryRunner();
     await qr.connect();
+    await qr.query('SET statement_timeout = 30000');
     await qr.startTransaction();
     try {
       let lastSeqNo = 0;
@@ -525,6 +526,7 @@ export class AppController {
 
     const qr = this.dataSource.createQueryRunner();
     await qr.connect();
+    await qr.query('SET statement_timeout = 30000');
     await qr.startTransaction();
     try {
       const restored: string[] = [];
@@ -580,6 +582,7 @@ export class AppController {
 
     const qr = this.dataSource.createQueryRunner();
     await qr.connect();
+    await qr.query('SET statement_timeout = 30000');
     await qr.startTransaction();
     try {
       const rows = await qr.query(
@@ -694,6 +697,8 @@ export class AppController {
     // ── Transaction with auto-snapshot ──
     const qr = this.dataSource.createQueryRunner();
     await qr.connect();
+    // Prevent CockroachDB transactions from hanging (max 30s per statement)
+    await qr.query('SET statement_timeout = 30000');
     await qr.startTransaction();
     try {
       // P2: Optimistic locking
@@ -758,6 +763,8 @@ export class AppController {
 
     const qr = this.dataSource.createQueryRunner();
     await qr.connect();
+    // Prevent CockroachDB transactions from hanging (max 30s per statement)
+    await qr.query('SET statement_timeout = 30000');
     await qr.startTransaction();
     try {
       // P2+P5: Version check inside transaction (serializable read)
@@ -848,6 +855,7 @@ export class AppController {
 
     const qr = this.dataSource.createQueryRunner();
     await qr.connect();
+    await qr.query('SET statement_timeout = 30000');
     await qr.startTransaction();
     try {
       // P2+P5: Optimistic locking inside transaction with row-level lock
@@ -949,6 +957,7 @@ export class AppController {
     // Auto-snapshot before delete
     const qr = this.dataSource.createQueryRunner();
     await qr.connect();
+    await qr.query('SET statement_timeout = 30000');
     await qr.startTransaction();
     try {
       await this.autoSnapshot(qr, tenantId, collection, 'delete');
