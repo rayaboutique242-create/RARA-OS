@@ -130,6 +130,25 @@ export class AppController {
     }
   }
 
+  private sanitizeCollectionPayload(collection: string, data: any[]): any[] {
+    if (!Array.isArray(data) || collection !== 'products') return Array.isArray(data) ? data : [];
+    const maxInlineImageChars = 200_000;
+    let stripped = 0;
+    const sanitized = data.map((item) => {
+      if (!item || typeof item !== 'object') return item;
+      const image = (item as any).image;
+      if (typeof image === 'string' && image.length > maxInlineImageChars && image.startsWith('data:image/')) {
+        stripped += 1;
+        return { ...item, image: null, _imageStripped: true };
+      }
+      return item;
+    });
+    if (stripped > 0) {
+      this.logger.warn(`[SYNC] Stripped ${stripped} oversized inline product image(s)`);
+    }
+    return sanitized;
+  }
+
   @Get()
   @Public()
   getHello(): string {
@@ -157,7 +176,12 @@ export class AppController {
     const collections: Record<string, any[]> = {};
     const versions: Record<string, number> = {};
     for (const row of rows) {
-      try { collections[row.collection] = JSON.parse(row.data); } catch { collections[row.collection] = []; }
+      try {
+        const parsed = JSON.parse(row.data);
+        collections[row.collection] = this.sanitizeCollectionPayload(row.collection, Array.isArray(parsed) ? parsed : []);
+      } catch {
+        collections[row.collection] = [];
+      }
       versions[row.collection] = row.version || 0;
     }
     return { tenantId, collections, versions };
@@ -617,7 +641,16 @@ export class AppController {
       'SELECT "data", "version", "updatedAt" FROM "tenant_data" WHERE "tenantId" = $1 AND "collection" = $2',
       [tenantId, collection]
     );
-    const fullData = rows.length > 0 ? (() => { try { return JSON.parse(rows[0].data); } catch { return []; } })() : [];
+    const fullData = rows.length > 0
+      ? (() => {
+          try {
+            const parsed = JSON.parse(rows[0].data);
+            return this.sanitizeCollectionPayload(collection, Array.isArray(parsed) ? parsed : []);
+          } catch {
+            return [];
+          }
+        })()
+      : [];
     const version = rows.length > 0 ? (rows[0].version || 0) : 0;
     const updatedAt = rows.length > 0 ? rows[0].updatedAt : null;
     const parsedOffset = Number(offsetStr);
@@ -646,7 +679,8 @@ export class AppController {
       throw new BadRequestException({ error: 'VALIDATION_ERROR', collection, messages: errors });
     }
 
-    const jsonData = JSON.stringify(body.data || []);
+    const sanitizedData = this.sanitizeCollectionPayload(collection, body.data || []);
+    const jsonData = JSON.stringify(sanitizedData);
 
     // ── Transaction with auto-snapshot ──
     const qr = this.dataSource.createQueryRunner();
@@ -685,7 +719,7 @@ export class AppController {
 
       await qr.commitTransaction();
       const newVersion = result?.[0]?.version || 1;
-      return { tenantId, collection, count: (body.data || []).length, version: newVersion };
+      return { tenantId, collection, count: sanitizedData.length, version: newVersion };
     } catch (err) {
       if (qr.isTransactionActive) await qr.rollbackTransaction();
       throw err;
@@ -751,8 +785,9 @@ export class AppController {
       // All writes in same transaction — atomic, with auto-snapshot
       for (const [collection, data] of Object.entries(body.collections || {})) {
         if (!Array.isArray(data)) continue;
+        const sanitizedData = this.sanitizeCollectionPayload(collection, data);
         await this.autoSnapshot(qr, tenantId, collection, 'bulk-put');
-        const jsonData = JSON.stringify(data);
+        const jsonData = JSON.stringify(sanitizedData);
         const result = await qr.query(`
           INSERT INTO "tenant_data" ("id", "tenantId", "collection", "data", "version")
           VALUES (gen_random_uuid(), $1, $2, $3, 1)
@@ -761,7 +796,7 @@ export class AppController {
           RETURNING "version"
         `, [tenantId, collection, jsonData]);
         synced.push(collection);
-        counts[collection] = data.length;
+        counts[collection] = sanitizedData.length;
         newVersions[collection] = result?.[0]?.version || 1;
       }
 
@@ -870,6 +905,7 @@ export class AppController {
           });
         }
 
+        items = this.sanitizeCollectionPayload(col, items);
         const jsonData = JSON.stringify(items);
         const result = await qr.query(
           `INSERT INTO "tenant_data" ("id", "tenantId", "collection", "data", "version")
