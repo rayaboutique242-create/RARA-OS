@@ -57,7 +57,7 @@ export class SyncValidationService {
     }
   }
 
-  // ── 3. Array-level validation (LENIENT: size checks only) ───
+  // ── 3. Array-level validation (FULLY LENIENT: warn-only) ───
   validateDataArray(data: any[], collection: string): string[] {
     const errors: string[] = [];
     const limits = getCollectionLimits(collection);
@@ -69,12 +69,16 @@ export class SyncValidationService {
     }
 
     if (data.length > limits.maxItems) {
-      errors.push(
-        `"${collection}" has ${data.length} items, max is ${limits.maxItems}`,
+      // Even maxItems is warn-only — sync store is a JSON blob, no real reason to reject
+      this.logger.warn(
+        `"${collection}" has ${data.length} items, max is ${limits.maxItems} (accepted, lenient mode)`,
       );
     }
 
-    // Per-item size check (sample first 100 + random 20 for large arrays)
+    // Per-item size check — WARN-ONLY (never reject)
+    // The total payload size gate (validatePayloadSize) already prevents abuse.
+    // Individual item size limits caused false rejections for items with embedded
+    // images, large metadata, or complex nested structures.
     const indicesToCheck = this.sampleIndices(data.length, 100, 20);
     const maxBytes = limits.maxItemSizeKB * 1024;
 
@@ -83,10 +87,9 @@ export class SyncValidationService {
       if (item === null || item === undefined) continue;
       const itemJson = JSON.stringify(item);
       if (itemJson.length > maxBytes) {
-        errors.push(
-          `"${collection}" item[${i}] exceeds ${limits.maxItemSizeKB}KB (${(itemJson.length / 1024).toFixed(1)}KB)`,
+        this.logger.warn(
+          `"${collection}" item[${i}] exceeds ${limits.maxItemSizeKB}KB (${(itemJson.length / 1024).toFixed(1)}KB) — accepted, lenient mode`,
         );
-        if (errors.length > 10) break; // cap error messages
       }
     }
 
@@ -124,7 +127,7 @@ export class SyncValidationService {
 
     const keys = Object.keys(collections);
     if (keys.length > 200) {
-      errors.push(`Too many collections in bulk: ${keys.length} > max 200`);
+      this.logger.warn(`Too many collections in bulk: ${keys.length} > max 200 (accepted, lenient mode)`);
     }
 
     for (const col of keys) {
