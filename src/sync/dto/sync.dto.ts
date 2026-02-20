@@ -74,28 +74,28 @@ export type AllowedCollection = typeof ALLOWED_COLLECTIONS[number];
 
 // ─── Per-collection size limits ───────────────────────────────
 export const COLLECTION_LIMITS: Record<string, { maxItems: number; maxItemSizeKB: number }> = {
-  // Critical business — generous limits
-  products:      { maxItems: 50_000, maxItemSizeKB: 10 },
-  orders:        { maxItems: 200_000, maxItemSizeKB: 20 },
-  clients:       { maxItems: 100_000, maxItemSizeKB: 5 },
-  categories:    { maxItems: 1_000, maxItemSizeKB: 2 },
-  users:         { maxItems: 500, maxItemSizeKB: 5 },
-  stores:        { maxItems: 100, maxItemSizeKB: 5 },
-  stockMovements:    { maxItems: 500_000, maxItemSizeKB: 10 },
-  stockTransfers:    { maxItems: 100_000, maxItemSizeKB: 20 },
-  transferReceipts:  { maxItems: 100_000, maxItemSizeKB: 20 },
-  deliveries:        { maxItems: 200_000, maxItemSizeKB: 10 },
-  cities:            { maxItems: 100_000, maxItemSizeKB: 5 },
-  // Logs — large volume, small items
-  activityLogs:  { maxItems: 100_000, maxItemSizeKB: 5 },
-  auditLogs:     { maxItems: 100_000, maxItemSizeKB: 5 },
-  systemLogs:    { maxItems: 50_000, maxItemSizeKB: 5 },
-  auditTrail:    { maxItems: 100_000, maxItemSizeKB: 5 },
+  // Critical business — very generous limits to avoid false rejections
+  products:      { maxItems: 50_000, maxItemSizeKB: 50 },
+  orders:        { maxItems: 200_000, maxItemSizeKB: 50 },
+  clients:       { maxItems: 100_000, maxItemSizeKB: 20 },
+  categories:    { maxItems: 1_000, maxItemSizeKB: 10 },
+  users:         { maxItems: 500, maxItemSizeKB: 10 },
+  stores:        { maxItems: 100, maxItemSizeKB: 10 },
+  stockMovements:    { maxItems: 500_000, maxItemSizeKB: 50 },
+  stockTransfers:    { maxItems: 100_000, maxItemSizeKB: 50 },
+  transferReceipts:  { maxItems: 100_000, maxItemSizeKB: 50 },
+  deliveries:        { maxItems: 200_000, maxItemSizeKB: 20 },
+  cities:            { maxItems: 100_000, maxItemSizeKB: 10 },
+  // Logs — large volume, moderate items
+  activityLogs:  { maxItems: 100_000, maxItemSizeKB: 10 },
+  auditLogs:     { maxItems: 100_000, maxItemSizeKB: 10 },
+  systemLogs:    { maxItems: 50_000, maxItemSizeKB: 10 },
+  auditTrail:    { maxItems: 100_000, maxItemSizeKB: 10 },
   // Settings  — small volume
-  dashboardLayouts: { maxItems: 100, maxItemSizeKB: 20 },
-  widgetConfigs:    { maxItems: 200, maxItemSizeKB: 10 },
+  dashboardLayouts: { maxItems: 100, maxItemSizeKB: 50 },
+  widgetConfigs:    { maxItems: 200, maxItemSizeKB: 20 },
   // Default for unlisted collections
-  _default:      { maxItems: 50_000, maxItemSizeKB: 10 },
+  _default:      { maxItems: 50_000, maxItemSizeKB: 50 },
 };
 
 export function getCollectionLimits(collection: string) {

@@ -239,7 +239,7 @@ export class AppController {
     // ── Validation ──
     const vResult = this.syncValidation.validateCrdtEvents(events, deviceId);
     if (!vResult.valid) {
-      throw new BadRequestException({ error: 'VALIDATION_ERROR', messages: vResult.errors });
+      throw new BadRequestException({ error: 'VALIDATION_ERROR', message: `Validation failed: ${vResult.errors.join('; ')}`, validationErrors: vResult.errors });
     }
 
     if (!deviceId || events.length === 0) {
@@ -688,7 +688,7 @@ export class AppController {
     this.syncValidation.validateCollectionName(collection);
     const errors = this.syncValidation.validateDataArray(body.data || [], collection);
     if (errors.length > 0) {
-      throw new BadRequestException({ error: 'VALIDATION_ERROR', collection, messages: errors });
+      throw new BadRequestException({ error: 'VALIDATION_ERROR', message: `Validation failed for ${collection}: ${errors.join('; ')}`, collection, validationErrors: errors });
     }
 
     const sanitizedData = this.sanitizeCollectionPayload(collection, body.data || []);
@@ -756,7 +756,7 @@ export class AppController {
     // ── Validation ──
     const vResult = this.syncValidation.validateBulkCollections(body.collections || {});
     if (!vResult.valid) {
-      throw new BadRequestException({ error: 'VALIDATION_ERROR', messages: vResult.errors });
+      throw new BadRequestException({ error: 'VALIDATION_ERROR', message: `Bulk validation failed: ${vResult.errors.join('; ')}`, validationErrors: vResult.errors });
     }
 
     const synced: string[] = [];
@@ -848,7 +848,7 @@ export class AppController {
     // ── Validation ──
     const vResult = this.syncValidation.validateDeltaPayload(deltas);
     if (!vResult.valid) {
-      throw new BadRequestException({ error: 'VALIDATION_ERROR', messages: vResult.errors });
+      throw new BadRequestException({ error: 'VALIDATION_ERROR', message: `Delta validation failed: ${vResult.errors.join('; ')}`, validationErrors: vResult.errors });
     }
 
     const patched: string[] = [];
