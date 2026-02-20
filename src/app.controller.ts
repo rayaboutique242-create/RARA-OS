@@ -697,8 +697,10 @@ export class AppController {
     // ── Transaction with auto-snapshot ──
     const qr = this.dataSource.createQueryRunner();
     await qr.connect();
-    // Prevent CockroachDB transactions from hanging (max 30s per statement)
-    await qr.query('SET statement_timeout = 30000');
+    // Prevent CockroachDB transactions from hanging
+    // Large collections (cities, stockMovements, products) need more time
+    const stmtTimeout = ['cities', 'stockMovements', 'products', 'orders', 'clients'].includes(collection) ? 60000 : 30000;
+    await qr.query(`SET statement_timeout = ${stmtTimeout}`);
     await qr.startTransaction();
     try {
       // P2: Optimistic locking
